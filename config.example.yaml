@@ -1,0 +1,17 @@
+development:
+  discord_token: "Njg2NDI0NTg5MjM4NDQ0NDY2.XmQJ7g.fjG6U1i3c2LLPvP9woUZc0a97uA"
+  mongo_uri: "mongodb+srv://username:password@cluster.example.com/database"
+  discord_guild: "689541235476310273"
+  attendance_channel: "792153408679802625"
+  aws_access_key_id: AKIAIOSFODNN7EXAMPLE
+  aws_secret_access_key: 7wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  aws_region: us-east-1
+
+production:
+  discord_token: "Njg2NDI0NTg5MjM4NDQ0NDY2.XmQJ7g.fjG6U1i3c2LLPvP9woUZc0a97uA"
+  mongo_uri: "mongodb+srv://username:password@cluster.example.com/database"
+  discord_guild: "689541235476310273"
+  attendance_channel: "792153408679802625"
+  aws_access_key_id: AKIAIOSFODNN7EXAMPLE
+  aws_secret_access_key: 7wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  aws_region: us-east-1

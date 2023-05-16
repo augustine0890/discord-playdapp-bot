@@ -3,6 +3,7 @@ use serenity::{
     model::gateway::{GatewayIntents, Ready},
     prelude::*,
 };
+use tracing::info;
 
 use crate::database::Database;
 
@@ -13,7 +14,7 @@ pub struct Handler {
 #[async_trait]
 impl EventHandler for Handler {
     async fn ready(&self, _: Context, ready: Ready) {
-        println!("{} is connected!", ready.user.name);
+        info!("{} is connected!", ready.user.name);
     }
 }
 

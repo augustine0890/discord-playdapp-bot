@@ -5,15 +5,22 @@ use config::Config;
 use database::Database;
 use discord::run_discord_bot;
 
+mod commands;
 mod config;
 mod database;
 mod discord;
 
 #[tokio::main]
 async fn main() {
+    // Setup the tracing
     tracing_subscriber::fmt().with_max_level(Level::INFO).init();
 
-    let config = Config::new("config.yaml").expect("Failed to read configuration file");
+    // Load enviroment variables
+    let config = Config::new("config.yaml")
+        .await
+        .expect("Failed to read configuration file");
+
+    // Connect to the database
     let db = Database::new(&config.mongo_uri)
         .await
         .expect("Failed to connect to database");

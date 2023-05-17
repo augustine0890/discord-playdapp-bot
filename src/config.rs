@@ -17,7 +17,7 @@ pub struct EnvConfig {
 }
 
 impl Config {
-    pub fn new(file_path: &str) -> Result<EnvConfig, Box<dyn std::error::Error>> {
+    pub async fn new(file_path: &str) -> Result<EnvConfig, Box<dyn std::error::Error>> {
         let contents = fs::read_to_string(file_path)?;
         let config: Self = serde_yaml::from_str(&contents)?;
 

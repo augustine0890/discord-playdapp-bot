@@ -1,17 +1,17 @@
-use ethaddr::Address;
+use ethers::types::Address;
+use ethers::utils::to_checksum;
 use serenity::model::application::command::Command;
 use serenity::model::prelude::interaction::MessageFlags;
 use serenity::{
     async_trait,
+    model::application::interaction::application_command::ApplicationCommandInteraction,
     model::application::interaction::{Interaction, InteractionResponseType},
     model::gateway::{GatewayIntents, Ready},
-    model::{
-        application::interaction::application_command::ApplicationCommandInteraction, id::GuildId,
-    },
     prelude::*,
 };
 
 use std::env;
+use std::str::FromStr;
 use tracing::{error, info};
 
 use crate::commands;
@@ -40,48 +40,21 @@ impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, ready: Ready) {
         info!("{} is connected!", ready.user.name);
 
-        // Get the guild_id from the environment variables
-        let guild_id = GuildId(
-            env::var("DISCORD_GUILD")
-                .expect("Expected GUILD_ID in environment")
-                .parse()
-                .expect("GUILD_ID must be an integer"),
-        );
-
-        // Fetch existing application commands.
-        let existing_commands = guild_id
-            .get_application_commands(&ctx.http)
-            .await
-            .expect("Could not fetch commands");
-
-        // Loop over the existing commands and delete the command named "exchange" if it exists.
-        for command in existing_commands {
-            if command.name == "exchange" {
-                guild_id
-                    .delete_application_command(&ctx.http, command.id)
-                    .await
-                    .expect("Failed to delete command");
-            }
-        }
-
         // Fetch existing global commands.
         let global_commands = Command::get_global_application_commands(&ctx.http)
             .await
             .unwrap();
         // Loop over the global commands and delete the command named "exchange" if it exists.
         for command in global_commands {
-            if command.name == "exchange" {
-                Command::delete_global_application_command(&ctx.http, command.id)
-                    .await
-                    .expect("Failed to delete global command");
-            }
+            Command::delete_global_application_command(&ctx.http, command.id)
+                .await
+                .expect("Failed to delete global command");
         }
 
-        // Create the "exchange" command.
-        let new_command = guild_id
-            .create_application_command(&ctx.http, |command| commands::exchange(command))
-            .await
-            .expect("Failed to create command");
+        let _ = Command::create_global_application_command(&ctx.http, |command| {
+            commands::exchange(command)
+        })
+        .await;
     }
 }
 
@@ -116,8 +89,20 @@ impl Handler {
         // Check if the wallet address is valid and convert it to checksum format
         let _ = match wallet_address_option {
             // let wallet_address = match wallet_address_option {
-            Some(addr) => match Address::from_str_checksum(addr) {
-                Ok(address) => Some(address),
+            Some(addr) => match Address::from_str(addr) {
+                Ok(address) => {
+                    let checksummed = to_checksum(&address, None);
+                    let _ = command
+                        .create_interaction_response(&ctx.http, |r| {
+                            r.kind(InteractionResponseType::ChannelMessageWithSource)
+                                .interaction_response_data(|m| {
+                                    m.content(&checksummed).flags(MessageFlags::EPHEMERAL)
+                                })
+                        })
+                        .await;
+
+                    Some(checksummed)
+                }
                 Err(_) => {
                     let _ = command
                         .create_interaction_response(&ctx.http, |r| {
@@ -167,7 +152,10 @@ impl Handler {
 }
 
 pub async fn run_discord_bot(token: &str, db: Database) -> tokio::task::JoinHandle<()> {
-    let intents = GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT;
+    let intents = GatewayIntents::GUILD_MESSAGES
+        | GatewayIntents::MESSAGE_CONTENT
+        | GatewayIntents::GUILDS
+        | GatewayIntents::GUILD_INTEGRATIONS;
     let mut client = Client::builder(&token, intents)
         .event_handler(Handler { db })
         .await

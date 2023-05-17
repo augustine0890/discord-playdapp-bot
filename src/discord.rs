@@ -46,11 +46,12 @@ impl EventHandler for Handler {
             .unwrap();
         // Loop over the global commands and delete the command named "exchange" if it exists.
         for command in global_commands {
-            Command::delete_global_application_command(&ctx.http, command.id)
-                .await
-                .expect("Failed to delete global command");
+            if command.name == "exchange" {
+                Command::delete_global_application_command(&ctx.http, command.id)
+                    .await
+                    .expect("Failed to delete global command");
+            }
         }
-
         let _ = Command::create_global_application_command(&ctx.http, |command| {
             commands::exchange(command)
         })
@@ -69,8 +70,26 @@ impl Handler {
             .parse()
             .expect("ATTENDANCE_CHANNEL must be an integer");
         if command.channel_id.as_u64() != &attendance_channel {
+            let _ = command
+                .create_interaction_response(&ctx.http, |r| {
+                    r.kind(InteractionResponseType::ChannelMessageWithSource)
+                        .interaction_response_data(|m| {
+                            m.content(format!(
+                                "Please go to the <#{}> channel to exchange Items.",
+                                attendance_channel
+                            ))
+                            // .allowed_mentions(|am| am.empty_parse().channels(vec![attendance_channel]))
+                            .flags(MessageFlags::EPHEMERAL)
+                        })
+                })
+                .await;
             return Ok(());
         }
+
+        let username = match &command.member {
+            Some(member) => member.nick.as_deref().unwrap_or(&member.user.name),
+            None => &command.user.name,
+        };
 
         // Get the options from the command
         let wallet_address_option = command
@@ -92,11 +111,17 @@ impl Handler {
             Some(addr) => match Address::from_str(addr) {
                 Ok(address) => {
                     let checksummed = to_checksum(&address, None);
+                    let content = format!(
+                        "Hello {}!\nWe have already received your request of exchanging the Discord points into {} Tournament tickets from the wallet address {}.\nOnce your request is submitted, the points are subtracted immediately, and we will send you the Tournament ticket(s) on the coming Thursday!\nPlease check your Tournament page on Thursday.\nFor any inquiries, please contact the Discord Admin.",
+                        username,
+                        number_of_tickets_option.unwrap_or(0),
+                        checksummed
+                    );
                     let _ = command
                         .create_interaction_response(&ctx.http, |r| {
                             r.kind(InteractionResponseType::ChannelMessageWithSource)
                                 .interaction_response_data(|m| {
-                                    m.content(&checksummed).flags(MessageFlags::EPHEMERAL)
+                                    m.content(content).flags(MessageFlags::EPHEMERAL)
                                 })
                         })
                         .await;

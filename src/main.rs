@@ -9,6 +9,7 @@ mod commands;
 mod config;
 mod database;
 mod discord;
+mod util;
 
 #[tokio::main]
 async fn main() {

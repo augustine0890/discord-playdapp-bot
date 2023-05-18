@@ -1,12 +1,12 @@
 use ethers::types::Address;
 use ethers::utils::to_checksum;
-use serenity::model::application::command::Command;
-use serenity::model::prelude::interaction::MessageFlags;
 use serenity::{
     async_trait,
+    model::application::command::Command,
     model::application::interaction::application_command::ApplicationCommandInteraction,
     model::application::interaction::{Interaction, InteractionResponseType},
     model::gateway::{GatewayIntents, Ready},
+    model::prelude::interaction::MessageFlags,
     prelude::*,
 };
 

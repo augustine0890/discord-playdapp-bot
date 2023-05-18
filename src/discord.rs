@@ -16,6 +16,7 @@ use tracing::{error, info};
 
 use crate::commands;
 use crate::database::Database;
+use crate::util;
 
 pub struct Handler {
     pub db: Database,
@@ -79,6 +80,20 @@ impl Handler {
                                 attendance_channel
                             ))
                             // .allowed_mentions(|am| am.empty_parse().channels(vec![attendance_channel]))
+                            .flags(MessageFlags::EPHEMERAL)
+                        })
+                })
+                .await;
+            return Ok(());
+        }
+
+        // Except Thursday for requesting the exchange
+        if util::is_thu() {
+            let _ = command
+                .create_interaction_response(&ctx.http, |r| {
+                    r.kind(InteractionResponseType::ChannelMessageWithSource)
+                        .interaction_response_data(|m| {
+                            m.content("Submission of request is only available on Mon-Wed, Fri-Sun.\nPlease submit again tomorrow.")
                             .flags(MessageFlags::EPHEMERAL)
                         })
                 })

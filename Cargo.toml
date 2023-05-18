@@ -16,3 +16,4 @@ tracing-subscriber = "0.3.17"
 # ethaddr = "0.1.2"
 ethers = "2.0.4"
 chrono = "0.4.24"
+bson = { version = "2.6.1", features = ["chrono-0_4"] }

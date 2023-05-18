@@ -2,7 +2,7 @@ use tracing::{error, info, Level};
 use tracing_subscriber;
 
 use config::Config;
-use database::Database;
+use database::MongoDB;
 use discord::run_discord_bot;
 
 mod commands;
@@ -22,7 +22,7 @@ async fn main() {
         .expect("Failed to read configuration file");
 
     // Connect to the database
-    let db = Database::new(&config.mongo_uri)
+    let db = MongoDB::new(&config.mongo_uri)
         .await
         .expect("Failed to connect to database");
     info!("Connected to database");

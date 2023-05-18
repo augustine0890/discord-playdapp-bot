@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use ethers::types::Address;
 use ethers::utils::to_checksum;
 use serenity::{
@@ -10,16 +11,17 @@ use serenity::{
     prelude::*,
 };
 
+use chrono::Utc;
 use std::env;
 use std::str::FromStr;
 use tracing::{error, info};
 
 use crate::commands;
-use crate::database::Database;
+use crate::database::{Exchange, ExchangeStatus, MongoDB};
 use crate::util;
 
 pub struct Handler {
-    pub db: Database,
+    pub db: MongoDB,
 }
 
 #[async_trait]
@@ -88,18 +90,18 @@ impl Handler {
         }
 
         // Except Thursday for requesting the exchange
-        if util::is_thu() {
-            let _ = command
-                .create_interaction_response(&ctx.http, |r| {
-                    r.kind(InteractionResponseType::ChannelMessageWithSource)
-                        .interaction_response_data(|m| {
-                            m.content("Submission of request is only available on Mon-Wed, Fri-Sun.\nPlease submit again tomorrow.")
-                            .flags(MessageFlags::EPHEMERAL)
-                        })
-                })
-                .await;
-            return Ok(());
-        }
+        // if util::is_thu() {
+        // let _ = command
+        // .create_interaction_response(&ctx.http, |r| {
+        // r.kind(InteractionResponseType::ChannelMessageWithSource)
+        // .interaction_response_data(|m| {
+        // m.content("Submission of request is only available on Mon-Wed, Fri-Sun.\nPlease submit again tomorrow.")
+        // .flags(MessageFlags::EPHEMERAL)
+        // })
+        // })
+        // .await;
+        // return Ok(());
+        // }
 
         let username = match &command.member {
             Some(member) => member.nick.as_deref().unwrap_or(&member.user.name),
@@ -121,8 +123,7 @@ impl Handler {
             .and_then(|v| v.as_i64());
 
         // Check if the wallet address is valid and convert it to checksum format
-        let _ = match wallet_address_option {
-            // let wallet_address = match wallet_address_option {
+        let wallet_address = match wallet_address_option {
             Some(addr) => match Address::from_str(addr) {
                 Ok(address) => {
                     let checksummed = to_checksum(&address, None);
@@ -171,9 +172,8 @@ impl Handler {
         };
 
         // Check if the number of tickets is valid
-        let _ = match number_of_tickets_option {
-            // let number_of_tickets = match number_of_tickets_option {
-            Some(num) => num as u8,
+        let number_of_tickets = match number_of_tickets_option {
+            Some(num) => num,
             None => {
                 command
                     .create_interaction_response(&ctx.http, |r| {
@@ -187,11 +187,48 @@ impl Handler {
                 return Ok(());
             }
         };
+
+        const ITEM_TICKET: &str = "ticket";
+        // Create an Exchange record
+        let exchange = Exchange {
+            id: None,
+            dc_id: command.user.id.to_string(),
+            dc_username: command.user.name.to_string(),
+            wallet_address: wallet_address.ok_or_else(|| "Wallet address is missing")?, // If it can be `None` and it's an error case
+            item: ITEM_TICKET.to_string(),
+            quantity: number_of_tickets,
+            status: ExchangeStatus::Submitted,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        // Add the exchange record to the database
+        if let Err(why) = self.db.add_exchange_record(exchange).await {
+            error!("Error adding exchange record: {}", why);
+        }
+
+        // Send a public message to the channel
+        if let Err(why) = command
+            .channel_id
+            .say(
+                &ctx.http,
+                format!(
+                    "<@{}> just exchanged {} points to {} Tournament ticket(s)!",
+                    command.user.id, // Make sure to use the user's ID
+                    number_of_tickets * 1000,
+                    number_of_tickets
+                ),
+            )
+            .await
+        {
+            error!("Error sending message: {}", why);
+        }
+
         Ok(())
     }
 }
 
-pub async fn run_discord_bot(token: &str, db: Database) -> tokio::task::JoinHandle<()> {
+pub async fn run_discord_bot(token: &str, db: MongoDB) -> tokio::task::JoinHandle<()> {
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT
         | GatewayIntents::GUILDS

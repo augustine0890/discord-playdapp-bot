@@ -20,6 +20,7 @@ pub fn exchange(
                 .description("Number of tickets to exchange")
                 .kind(CommandOptionType::Integer)
                 .min_int_value(1)
+                .max_int_value(256)
                 .required(true)
         })
 }

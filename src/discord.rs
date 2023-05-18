@@ -90,18 +90,18 @@ impl Handler {
         }
 
         // Except Thursday for requesting the exchange
-        // if util::is_thu() {
-        // let _ = command
-        // .create_interaction_response(&ctx.http, |r| {
-        // r.kind(InteractionResponseType::ChannelMessageWithSource)
-        // .interaction_response_data(|m| {
-        // m.content("Submission of request is only available on Mon-Wed, Fri-Sun.\nPlease submit again tomorrow.")
-        // .flags(MessageFlags::EPHEMERAL)
-        // })
-        // })
-        // .await;
-        // return Ok(());
-        // }
+        if util::is_thu() {
+            let _ = command
+                .create_interaction_response(&ctx.http, |r| {
+                    r.kind(InteractionResponseType::ChannelMessageWithSource)
+                        .interaction_response_data(|m| {
+                            m.content("Submission of request is only available on Mon-Wed, Fri-Sun.\nPlease submit again tomorrow.")
+                            .flags(MessageFlags::EPHEMERAL)
+                        })
+                })
+                .await;
+            return Ok(());
+        }
 
         let username = match &command.member {
             Some(member) => member.nick.as_deref().unwrap_or(&member.user.name),
@@ -127,21 +127,6 @@ impl Handler {
             Some(addr) => match Address::from_str(addr) {
                 Ok(address) => {
                     let checksummed = to_checksum(&address, None);
-                    let content = format!(
-                        "Hello {}!\nWe have already received your request of exchanging the Discord points into {} Tournament tickets from the wallet address {}.\nOnce your request is submitted, the points are subtracted immediately, and we will send you the Tournament ticket(s) on the coming Thursday!\nPlease check your Tournament page on Thursday.\nFor any inquiries, please contact the Discord Admin.",
-                        username,
-                        number_of_tickets_option.unwrap_or(0),
-                        checksummed
-                    );
-                    let _ = command
-                        .create_interaction_response(&ctx.http, |r| {
-                            r.kind(InteractionResponseType::ChannelMessageWithSource)
-                                .interaction_response_data(|m| {
-                                    m.content(content).flags(MessageFlags::EPHEMERAL)
-                                })
-                        })
-                        .await;
-
                     Some(checksummed)
                 }
                 Err(_) => {
@@ -194,7 +179,7 @@ impl Handler {
             id: None,
             dc_id: command.user.id.to_string(),
             dc_username: command.user.name.to_string(),
-            wallet_address: wallet_address.ok_or_else(|| "Wallet address is missing")?, // If it can be `None` and it's an error case
+            wallet_address: wallet_address.clone(), // If it can be `None` and it's an error case
             item: ITEM_TICKET.to_string(),
             quantity: number_of_tickets,
             status: ExchangeStatus::Submitted,
@@ -206,6 +191,22 @@ impl Handler {
         if let Err(why) = self.db.add_exchange_record(exchange).await {
             error!("Error adding exchange record: {}", why);
         }
+
+        // Send the hidden acknowledge message
+        let content = format!(
+            "Hello {}!\nWe have already received your request of exchanging the Discord points into {} Tournament tickets from the wallet address {}.\nOnce your request is submitted, the points are subtracted immediately, and we will send you the Tournament ticket(s) on the coming Thursday!\nPlease check your Tournament page on Thursday.\nFor any inquiries, please contact the Discord Admin.",
+            username,
+            number_of_tickets,
+            wallet_address.unwrap()
+        );
+        let _ = command
+            .create_interaction_response(&ctx.http, |r| {
+                r.kind(InteractionResponseType::ChannelMessageWithSource)
+                    .interaction_response_data(|m| {
+                        m.content(content).flags(MessageFlags::EPHEMERAL)
+                    })
+            })
+            .await;
 
         // Send a public message to the channel
         if let Err(why) = command

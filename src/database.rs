@@ -13,13 +13,13 @@ pub enum ExchangeStatus {
     Completed,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Exchange {
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
     pub id: Option<ObjectId>,
     pub dc_id: String,
     pub dc_username: String,
-    pub wallet_address: String,
+    pub wallet_address: Option<String>,
     pub item: String,
     pub quantity: i64,
     pub status: ExchangeStatus,

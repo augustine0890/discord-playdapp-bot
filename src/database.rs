@@ -2,6 +2,7 @@ use chrono::Utc;
 use mongodb::bson::{doc, oid::ObjectId};
 use mongodb::error::Error;
 use mongodb::error::Result as MongoResult;
+use mongodb::options::FindOneOptions;
 use mongodb::{options::ClientOptions, Client, Database};
 use serde::{Deserialize, Serialize};
 
@@ -57,5 +58,22 @@ impl MongoDB {
             .insert_one(exchange_doc, None)
             .await
             .map(|_| ())
+    }
+
+    pub async fn get_user_points(&self, user_id: &str) -> MongoResult<i32> {
+        let user_collection = self.db.collection::<mongodb::bson::Document>("users");
+        let filter = doc! {"_id": user_id };
+        let options = FindOneOptions::builder()
+            .projection(doc! {"points": 1})
+            .build();
+        let result = user_collection.find_one(filter, options).await?;
+
+        match result {
+            Some(document) => {
+                let points = document.get_i32("points").unwrap_or_default();
+                Ok(points)
+            }
+            None => Ok(0), // Return 0 if the user is not found
+        }
     }
 }

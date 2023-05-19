@@ -196,6 +196,11 @@ impl Handler {
             return Ok(());
         }
 
+        // Subtract the required points from the user's points
+        self.db
+            .subtract_user_points(&command.user.id.to_string(), required_points)
+            .await?;
+
         const ITEM_TICKET: &str = "ticket";
         // Create an Exchange record
         let exchange = Exchange {

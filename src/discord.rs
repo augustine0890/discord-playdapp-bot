@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 use ethers::types::Address;
 use ethers::utils::to_checksum;
 use serenity::{
@@ -174,6 +173,28 @@ impl Handler {
                 return Ok(());
             }
         };
+
+        // Check if the user has enough points
+        let required_points = number_of_tickets as i32 * 1000;
+
+        let user_points = self
+            .db
+            .get_user_points(&command.user.id.to_string())
+            .await
+            .unwrap_or_default();
+        if user_points < required_points {
+            command
+                .create_interaction_response(&ctx.http, |r| {
+                    r.kind(InteractionResponseType::ChannelMessageWithSource)
+                        .interaction_response_data(|m| {
+                            m.content("Sorry! You do not have enough points to exchange. Try to earn more points! 🏋️‍♂️💪🏋️‍♀️")
+                                .flags(MessageFlags::EPHEMERAL)
+                        })
+                })
+                .await?;
+
+            return Ok(());
+        }
 
         const ITEM_TICKET: &str = "ticket";
         // Create an Exchange record

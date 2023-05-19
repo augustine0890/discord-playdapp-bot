@@ -66,20 +66,8 @@ impl EventHandler for Handler {
     }
 
     async fn message(&self, ctx: Context, msg: DiscordMessage) {
-        if msg.content == "!cr" || msg.content == "!check-records" {
-            // Here we are assuming that you have already implemented a way to get the records.
-            // If not, you would need to do so.
-            let records = match self.db.get_user_records(msg.author.id.to_string()).await {
-                Ok(records) => records,
-                Err(e) => {
-                    println!("Error getting user records: {:?}", e);
-                    return;
-                }
-            };
-
-            // Call the function to send records to discord
-            let user: &User = &msg.author;
-            send_records_to_discord(&records, &ctx, msg.channel_id, user).await;
+        if let Err(why) = self.handle_records_command(&msg, &ctx).await {
+            println!("Error handling records command: {:?}", why);
         }
     }
 }
@@ -278,6 +266,36 @@ impl Handler {
 
         Ok(())
     }
+
+    pub async fn handle_records_command(
+        &self,
+        msg: &DiscordMessage,
+        ctx: &Context,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        // Set channel ID
+        let attendance_channel: ChannelId = match env::var("ATTENDANCE_CHANNEL") {
+            Ok(channel_str) => match channel_str.parse::<u64>() {
+                Ok(channel_id) => ChannelId(channel_id),
+                Err(_) => panic!("Failed to parse ATTENDANCE_CHANNEL as u64"),
+            },
+            Err(_) => panic!("ATTENDANCE_CHANNEL not found in environment"),
+        };
+        if msg.channel_id != attendance_channel {
+            return Ok(());
+        }
+
+        if msg.content == "!cr" || msg.content == "!check-records" {
+            let records = self.db.get_user_records(msg.author.id.to_string()).await?;
+            let user: &User = &msg.author;
+            let user_points = self
+                .db
+                .get_user_points(&msg.author.id.to_string())
+                .await
+                .unwrap_or_default();
+            send_records_to_discord(&records, ctx, msg.channel_id, user, user_points).await;
+        }
+        Ok(())
+    }
 }
 
 pub async fn run_discord_bot(token: &str, db: MongoDB) -> tokio::task::JoinHandle<()> {
@@ -302,14 +320,17 @@ pub async fn send_records_to_discord(
     ctx: &Context,
     channel_id: ChannelId,
     user: &User,
+    points: i32,
 ) {
     let mut embed = CreateEmbed::default();
     for record in records {
         let title = format!("{}'s Exchange Records", record.dc_username.clone());
-        let items = format!("{} {}(s)", record.quantity, record.item);
+        let description = format!("Here is your Exchange Record of Discord Points.\nYour current remaining points is **{}**.", points);
+        let items = format!("{} {}(s) 🎟️", record.quantity, record.item);
 
         embed
             .title(title)
+            .description(description)
             .field("Item", items, true)
             .field("Status", format!("{:?}", record.status), true)
             .field(
@@ -319,6 +340,10 @@ pub async fn send_records_to_discord(
             )
             .color(Color::new(0x00FA9A)) // note: Colour is the UK spelling of Color
             .thumbnail(user.face())
+            .footer(|f| {
+                f.text(format!("Given to {}", user.tag()))
+                    .icon_url(user.face())
+            })
             .timestamp(chrono::Utc::now().to_rfc3339());
     }
 

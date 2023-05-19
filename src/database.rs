@@ -132,4 +132,14 @@ impl MongoDB {
         }
         Ok(results)
     }
+
+    pub async fn update_all_submitted_to_processing(&self) -> Result<(), Error> {
+        let exchange_collection = self.db.collection::<mongodb::bson::Document>("exchange");
+        let filter = doc! { "status": Bson::String(ExchangeStatus::Submitted.to_string()) };
+        let update = doc! { "$set": { "status": Bson::String(ExchangeStatus::Processing.to_string())}, "$currentDate": { "updated_at": true }};
+        exchange_collection
+            .update_many(filter, update, None)
+            .await?;
+        Ok(())
+    }
 }

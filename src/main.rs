@@ -9,6 +9,7 @@ mod commands;
 mod config;
 mod database;
 mod discord;
+mod scheduler;
 mod util;
 
 #[tokio::main]
@@ -26,6 +27,12 @@ async fn main() {
         .await
         .expect("Failed to connect to database");
     info!("Connected to database");
+
+    // Setup the schedulers
+    let scheduler_db = db.clone();
+    tokio::spawn(async move {
+        scheduler::setup_scheduler(scheduler_db).await;
+    });
 
     // Run the Discord bot
     let discord_bot_handle = run_discord_bot(&config.discord_token, db).await;

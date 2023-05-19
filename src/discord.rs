@@ -1,11 +1,16 @@
 use ethers::types::Address;
 use ethers::utils::to_checksum;
+use serenity::builder::CreateEmbed;
+use serenity::model::user::User;
+use serenity::utils::Color;
 use serenity::{
     async_trait,
     model::application::command::Command,
     model::application::interaction::application_command::ApplicationCommandInteraction,
     model::application::interaction::{Interaction, InteractionResponseType},
+    model::channel::Message as DiscordMessage,
     model::gateway::{GatewayIntents, Ready},
+    model::id::ChannelId,
     model::prelude::interaction::MessageFlags,
     prelude::*,
 };
@@ -58,6 +63,24 @@ impl EventHandler for Handler {
             commands::exchange(command)
         })
         .await;
+    }
+
+    async fn message(&self, ctx: Context, msg: DiscordMessage) {
+        if msg.content == "!cr" || msg.content == "!check-records" {
+            // Here we are assuming that you have already implemented a way to get the records.
+            // If not, you would need to do so.
+            let records = match self.db.get_user_records(msg.author.id.to_string()).await {
+                Ok(records) => records,
+                Err(e) => {
+                    println!("Error getting user records: {:?}", e);
+                    return;
+                }
+            };
+
+            // Call the function to send records to discord
+            let user: &User = &msg.author;
+            send_records_to_discord(&records, &ctx, msg.channel_id, user).await;
+        }
     }
 }
 
@@ -272,4 +295,37 @@ pub async fn run_discord_bot(token: &str, db: MongoDB) -> tokio::task::JoinHandl
     });
 
     handler
+}
+
+pub async fn send_records_to_discord(
+    records: &[Exchange],
+    ctx: &Context,
+    channel_id: ChannelId,
+    user: &User,
+) {
+    let mut embed = CreateEmbed::default();
+    for record in records {
+        let title = format!("{}'s Exchange Records", record.dc_username.clone());
+        let items = format!("{} {}(s)", record.quantity, record.item);
+
+        embed
+            .title(title)
+            .field("Item", items, true)
+            .field("Status", format!("{:?}", record.status), true)
+            .field(
+                "Time (UTC)",
+                record.updated_at.format("%Y-%m-%d %H:%M"),
+                true,
+            )
+            .color(Color::new(0x00FA9A)) // note: Colour is the UK spelling of Color
+            .thumbnail(user.face())
+            .timestamp(chrono::Utc::now().to_rfc3339());
+    }
+
+    if let Err(why) = channel_id
+        .send_message(&ctx.http, |m| m.set_embed(embed))
+        .await
+    {
+        println!("Error sending message: {:?}", why);
+    }
 }

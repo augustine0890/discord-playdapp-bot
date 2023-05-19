@@ -130,7 +130,7 @@ impl Handler {
                     Some(checksummed)
                 }
                 Err(_) => {
-                    let _ = command
+                    command
                         .create_interaction_response(&ctx.http, |r| {
                             r.kind(InteractionResponseType::ChannelMessageWithSource)
                                 .interaction_response_data(|m| {
@@ -138,12 +138,13 @@ impl Handler {
                                         .flags(MessageFlags::EPHEMERAL)
                                 })
                         })
-                        .await;
-                    None
+                        .await?;
+
+                    return Ok(());
                 }
             },
             None => {
-                let _ = command
+                command
                     .create_interaction_response(&ctx.http, |r| {
                         r.kind(InteractionResponseType::ChannelMessageWithSource)
                             .interaction_response_data(|m| {
@@ -151,8 +152,9 @@ impl Handler {
                                     .flags(MessageFlags::EPHEMERAL)
                             })
                     })
-                    .await;
-                None
+                    .await?;
+
+                return Ok(());
             }
         };
 
@@ -214,7 +216,7 @@ impl Handler {
             .say(
                 &ctx.http,
                 format!(
-                    "<@{}> just exchanged {} points to {} Tournament ticket(s)!",
+                    "🥳 <@{}> just exchanged {} points to {} Tournament ticket(s)! 🎟️",
                     command.user.id, // Make sure to use the user's ID
                     number_of_tickets * 1000,
                     number_of_tickets

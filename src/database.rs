@@ -47,6 +47,7 @@ pub struct Exchange {
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub updated_at: chrono::DateTime<Utc>,
 }
+
 #[derive(Clone)]
 pub struct MongoDB {
     db: Database,
@@ -140,6 +141,17 @@ impl MongoDB {
         exchange_collection
             .update_many(filter, update, None)
             .await?;
+        Ok(())
+    }
+
+    pub async fn update_all_processing_to_completed(&self) -> Result<(), Error> {
+        let exchange_collection = self.db.collection::<mongodb::bson::Document>("exchange");
+        let filter = doc! { "status": Bson::String(ExchangeStatus::Processing.to_string()) };
+        let update = doc! { "$set": { "status": Bson::String(ExchangeStatus::Completed.to_string())}, "$currentDate": { "updatedAt": true }};
+        exchange_collection
+            .update_many(filter, update, None)
+            .await?;
+
         Ok(())
     }
 }

@@ -286,6 +286,18 @@ impl Handler {
 
         if msg.content == "!cr" || msg.content == "!check-records" {
             let records = self.db.get_user_records(msg.author.id.to_string()).await?;
+            if records.is_empty() {
+                msg.reply(
+                    &ctx.http,
+                    format!(
+                        "{} No submission or processing records. Your submission may be completed and tickets sent to your wallet already.\nPlease check the tickets on the Tournament page.",
+                        msg.author.mention()
+                    ),
+                )
+                .await?;
+                return Ok(());
+            }
+
             let user: &User = &msg.author;
             let user_points = self
                 .db

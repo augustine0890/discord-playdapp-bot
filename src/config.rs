@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use std::env;
 use std::fs;
+use tracing::info;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -23,8 +24,14 @@ impl Config {
 
         let environment = env::var("APP_ENV").unwrap_or_else(|_| "production".to_string());
         let env_config = match environment.as_str() {
-            "development" => config.development,
-            _ => config.production,
+            "development" => {
+                info!("Development running");
+                config.development
+            }
+            _ => {
+                info!("Production running");
+                config.production
+            }
         };
 
         env::set_var("DISCORD_TOKEN", &env_config.discord_token);

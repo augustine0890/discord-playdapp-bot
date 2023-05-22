@@ -5,10 +5,10 @@ use std::str::FromStr;
 use tracing::{error, info};
 
 pub async fn setup_scheduler(database: MongoDB) {
-    // let thursday_schedule = Schedule::from_str("0 */2 * * * *").unwrap(); // every 2 mins
-    let thursday_schedule = Schedule::from_str("* * * * * 5").unwrap();
-    let friday_schedule = Schedule::from_str("* * * * * 6").unwrap();
-    // let friday_schedule = Schedule::from_str("0 */3 * * * *").unwrap();
+    let thursday_schedule = Schedule::from_str("0 */5 * * * *").unwrap(); // every 2 mins
+                                                                          // let thursday_schedule = Schedule::from_str("* * * * * 5").unwrap();
+                                                                          // let friday_schedule = Schedule::from_str("* * * * * 6").unwrap();
+    let friday_schedule = Schedule::from_str("0 */10 * * * *").unwrap();
 
     let database_clone = database.clone();
 

@@ -108,7 +108,7 @@ impl MongoDB {
         let exchange_collection = self.db.collection::<mongodb::bson::Document>("exchange");
         let filter = doc! {
             "dc_id": dc_id,
-            "status": { "$in": [Bson::String(ExchangeStatus::Submitted.to_string()), Bson::String(ExchangeStatus::Processing.to_string())] }
+            // "status": { "$in": [Bson::String(ExchangeStatus::Submitted.to_string()), Bson::String(ExchangeStatus::Processing.to_string())] }
         };
         let options = FindOptions::builder()
             .projection(doc! {
@@ -119,6 +119,8 @@ impl MongoDB {
                 "status": 1,
                 "updatedAt": 1
             })
+            .limit(8) // Limit the number of documents returned
+            .sort(doc! {"updatedAt": -1}) // Order by 'updatedAt' in descending order
             .build();
         let mut cursor = exchange_collection.find(filter, options).await?;
         let mut results = Vec::new();

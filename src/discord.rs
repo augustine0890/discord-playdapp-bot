@@ -233,7 +233,7 @@ impl Handler {
 
         // Send the hidden acknowledge message
         let content = format!(
-            "Hello {}!\nWe have already received your request of exchanging the Discord points into {} Tournament tickets from the wallet address {}.\nOnce your request is submitted, the points are subtracted immediately, and we will send you the Tournament ticket(s) on the coming Thursday!\nPlease check your Tournament page on Thursday.\nFor any inquiries, please contact the Discord Admin.",
+            "Hello {}!👋🏻 \nWe have already received your request of exchanging the Discord points into **{} Tournament ticket(s)** from the wallet address **{}**.\nOnce your request is submitted, the points are subtracted immediately, and we will send you the Tournament ticket(s) on the coming **Thursday**!🤩 \nPlease check your Tournament page on Thursday.\nFor any inquiries, please contact the Discord Admin.🙌🏻",
             username,
             number_of_tickets,
             wallet_address.unwrap()

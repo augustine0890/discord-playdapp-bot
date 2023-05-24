@@ -2,7 +2,7 @@
 - This project is a Discord bot built with Rust that allows users to interact with a MongoDB database. The bot responds to several slash commands, including `/exchange`, `/attendance`, `/points`, and `/ranking`.
 
 ## Features
-- Exchange tickets: Users can use the `/exchange` command followed by their wallet address and the number of tickets they want to exchange. The bot will store the exchange request in a MongoDB database.
+- Exchange tickets: Users can use the `/exchange` command followed by their wallet address and the number of tickets they want to exchange.
 - Attendance: Coming soon.
 - Points: Coming soon.
 - Ranking: Coming soon.

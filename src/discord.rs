@@ -290,7 +290,7 @@ impl Handler {
                 msg.reply(
                     &ctx.http,
                     format!(
-                        "{} No submission or processing records. Your submission may be completed and tickets sent to your wallet already.\nPlease check the tickets on the Tournament page.",
+                        "{} No Points Exchange Records found. 🔍\nPlease type “/exchange” to exchange your points to items. 🎁",
                         msg.author.mention()
                     ),
                 )

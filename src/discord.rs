@@ -46,26 +46,11 @@ impl EventHandler for Handler {
 
     async fn ready(&self, ctx: Context, ready: Ready) {
         info!("{} is connected!", ready.user.name);
-
-        // Only allow some specific guilds
+        // Filter out unwanted guilds, leaving those not in the allowed list
         filter_guilds(&ctx, ready).await;
 
-        // Fetch existing global commands.
-        let global_commands = Command::get_global_application_commands(&ctx.http)
-            .await
-            .unwrap();
-        // Loop over the global commands and delete the command named "exchange" if it exists.
-        for command in global_commands {
-            if command.name == "exchange" {
-                Command::delete_global_application_command(&ctx.http, command.id)
-                    .await
-                    .expect("Failed to delete global command");
-            }
-        }
-        let _ = Command::create_global_application_command(&ctx.http, |command| {
-            commands::exchange(command)
-        })
-        .await;
+        // Setup global commands, deleting the "exchange" command if it exists and recreating it
+        setup_global_commands(&ctx).await;
     }
 
     async fn message(&self, ctx: Context, msg: DiscordMessage) {
@@ -328,6 +313,27 @@ pub async fn run_discord_bot(token: &str, db: MongoDB) -> tokio::task::JoinHandl
     });
 
     handler
+}
+
+pub async fn setup_global_commands(ctx: &Context) {
+    // Fetch existing global commands.
+    let global_commands = Command::get_global_application_commands(&ctx.http)
+        .await
+        .unwrap();
+
+    // Loop over the global commands and delete the command named "exchange" if it exists.
+    for command in global_commands {
+        if command.name == "exchange" {
+            Command::delete_global_application_command(&ctx.http, command.id)
+                .await
+                .expect("Failed to delete global command");
+        }
+    }
+
+    let _ = Command::create_global_application_command(&ctx.http, |command| {
+        commands::exchange(command)
+    })
+    .await;
 }
 
 pub async fn send_records_to_discord(

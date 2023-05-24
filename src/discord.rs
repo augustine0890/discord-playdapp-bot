@@ -22,7 +22,7 @@ use tracing::{error, info};
 
 use crate::commands;
 use crate::database::{Exchange, ExchangeStatus, MongoDB};
-use crate::util;
+use crate::util::{self, filter_guilds};
 
 pub struct Handler {
     pub db: MongoDB,
@@ -46,6 +46,9 @@ impl EventHandler for Handler {
 
     async fn ready(&self, ctx: Context, ready: Ready) {
         info!("{} is connected!", ready.user.name);
+
+        // Only allow some specific guilds
+        filter_guilds(&ctx, ready).await;
 
         // Fetch existing global commands.
         let global_commands = Command::get_global_application_commands(&ctx.http)

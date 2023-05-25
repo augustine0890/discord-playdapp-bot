@@ -6,8 +6,8 @@ use tracing::{error, info};
 
 pub async fn setup_scheduler(database: MongoDB) {
     // let thursday_schedule = Schedule::from_str("0 */5 * * * *").unwrap(); // every 2 mins
-    let thursday_schedule = Schedule::from_str("* * * * * 5").unwrap();
-    let friday_schedule = Schedule::from_str("* * * * * 6").unwrap();
+    let thursday_schedule = Schedule::from_str("0 1 0 * * 5").unwrap();
+    let friday_schedule = Schedule::from_str("0 1 0 * * 6").unwrap();
     // let friday_schedule = Schedule::from_str("0 */10 * * * *").unwrap(); // every 10 mins
 
     let database_clone = database.clone();
@@ -20,9 +20,10 @@ pub async fn setup_scheduler(database: MongoDB) {
             if let Some(next_thursday) = thursday_schedule.upcoming(chrono::Utc).next() {
                 if next_thursday > now {
                     let duration = (next_thursday - now).to_std().unwrap();
+                    let duration_in_days = (duration.as_secs() as f64 / 86400.0).round();
                     info!(
-                        "[Sending Tickets] Waiting until next scheduled event: [{}]",
-                        next_thursday
+                        "[Sending Tickets] Waiting [{} days] until next scheduled event: [{}]",
+                        duration_in_days, next_thursday
                     );
                     tokio::time::sleep(duration).await;
                     // Run task here.

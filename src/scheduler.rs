@@ -45,9 +45,10 @@ pub async fn setup_scheduler(database: MongoDB) {
             if let Some(next_friday) = friday_schedule.upcoming(chrono::Utc).next() {
                 if next_friday > now {
                     let duration = (next_friday - now).to_std().unwrap();
+                    let duration_in_days = (duration.as_secs() as f64 / 86400.0).round();
                     info!(
-                        "[Sent Tickets] Waiting until next scheduled event: [{}]",
-                        next_friday
+                        "[Sent Tickets] Waiting [{} days] until next scheduled event: [{}]",
+                        duration_in_days, next_friday
                     );
                     tokio::time::sleep(duration).await;
                     match database.update_all_processing_to_completed().await {

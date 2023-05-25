@@ -1,4 +1,4 @@
-use crate::database::MongoDB;
+use crate::database::mongo::MongoDB;
 use chrono::Utc;
 use cron::Schedule;
 use std::str::FromStr;

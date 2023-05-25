@@ -21,7 +21,8 @@ use std::str::FromStr;
 use tracing::{error, info};
 
 use crate::commands;
-use crate::database::{Exchange, ExchangeStatus, MongoDB};
+use crate::database::models::{Exchange, ExchangeStatus};
+use crate::database::mongo::MongoDB;
 use crate::util::{self, filter_guilds};
 
 pub struct Handler {

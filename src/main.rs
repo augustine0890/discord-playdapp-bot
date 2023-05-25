@@ -1,16 +1,10 @@
 use tracing::{error, info, Level};
 use tracing_subscriber;
 
-use config::Config;
-use database::MongoDB;
-use discord::run_discord_bot;
-
-mod commands;
-mod config;
-mod database;
-mod discord;
-mod scheduler;
-mod util;
+use discord_playdapp_bot::config::Config;
+use discord_playdapp_bot::database::mongo::MongoDB;
+use discord_playdapp_bot::discord::run_discord_bot;
+use discord_playdapp_bot::scheduler;
 
 #[tokio::main]
 async fn main() {

@@ -61,6 +61,29 @@ pub async fn setup_scheduler(database: MongoDB) {
             }
         }
     });
+
+    // The first day of every month
+    let monthly = Schedule::from_str("0 0 0 1 * *").unwrap();
+    tokio::spawn(async move {
+        let mut now = Utc::now();
+        loop {
+            // let mut upcoming_times = monthly.upcoming(chrono::Utc);
+            if let Some(next_month) = monthly.upcoming(chrono::Utc).next() {
+                if next_month > now {
+                    let duration = (next_month - now).to_std().unwrap();
+                    let duration_in_days = (duration.as_secs() as f64 / 86400.0).round();
+                    info!(
+                        "[Remove Data] Waiting [{} days] until next scheduled event: [{}]",
+                        duration_in_days, next_month
+                    );
+
+                    tokio::time::sleep(duration).await;
+
+                    now = Utc::now();
+                }
+            }
+        }
+    });
 }
 
 pub async fn send_daily_report(http: Arc<Http>, channel_id: ChannelId) {

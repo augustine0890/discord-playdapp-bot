@@ -1,7 +1,8 @@
 use crate::database::mongo::MongoDB;
-use chrono::Utc;
+use chrono::{NaiveDate, Utc};
 use cron::Schedule;
-use std::str::FromStr;
+use serenity::{http::Http, model::id::ChannelId};
+use std::{str::FromStr, sync::Arc};
 use tracing::{error, info};
 
 pub async fn setup_scheduler(database: MongoDB) {
@@ -56,6 +57,52 @@ pub async fn setup_scheduler(database: MongoDB) {
                         Err(e) => error!("Failed to updated completed records: {}", e),
                     }
                     now = Utc::now();
+                }
+            }
+        }
+    });
+}
+
+pub async fn send_daily_report(http: Arc<Http>, channel_id: ChannelId) {
+    // The specific date (January 31, 2023)
+    let started_day = NaiveDate::from_ymd_opt(2023, 1, 31);
+    // At 9:00 AM (UTC + 9) every day
+    let daily = Schedule::from_str("0 0 0 * * *").unwrap();
+    // let daily = Schedule::from_str("0 * * * * *").unwrap();
+
+    // Run concurrently (asynchronous task)
+    tokio::spawn(async move {
+        let mut now = Utc::now();
+        loop {
+            // Next time event
+            if let Some(next_daily) = daily.upcoming(chrono::Utc).next() {
+                // The next time event is in the future
+                if next_daily > now {
+                    let duration = (next_daily - now).to_std().unwrap();
+                    info!("[Daily Report] The next scheduled event: [{}]", next_daily);
+                    // Pause the task for the duration until the next scheduled event
+                    tokio::time::sleep(duration).await;
+                    now = Utc::now();
+                    // Calculate the duratioin from the started day until now
+                    let available_days =
+                        now.date_naive().signed_duration_since(started_day.unwrap());
+                    let days = available_days.num_days();
+
+                    let message = format!(
+                        "🗣️ The Points System has run for **{}** days without crashing.🥳",
+                        days
+                    );
+                    // Send the embed message to the channel
+                    let _ = channel_id
+                        .send_message(&http, |m| {
+                            m.embed(|e| {
+                                e.title("Application Uptime");
+                                e.description(&message);
+                                e.color(0x00ff00);
+                                e.timestamp(chrono::Utc::now().to_rfc3339())
+                            })
+                        })
+                        .await;
                 }
             }
         }

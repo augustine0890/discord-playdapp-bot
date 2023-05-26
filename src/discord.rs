@@ -18,11 +18,13 @@ use serenity::{
 use chrono::Utc;
 use std::env;
 use std::str::FromStr;
+use std::sync::Arc;
 use tracing::{error, info};
 
 use crate::commands;
 use crate::database::models::{Exchange, ExchangeStatus};
 use crate::database::mongo::MongoDB;
+use crate::scheduler::send_daily_report;
 use crate::util::{self, filter_guilds};
 
 pub struct Handler {
@@ -300,17 +302,36 @@ impl Handler {
 }
 
 pub async fn run_discord_bot(token: &str, db: MongoDB) -> tokio::task::JoinHandle<()> {
+    // Define the necessary gateway intents
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT
         | GatewayIntents::GUILDS
         | GatewayIntents::GUILD_INTEGRATIONS;
-    let mut client = Client::builder(&token, intents)
+    // Build the Discord client with the token, intents and event handler
+    let client = Client::builder(&token, intents)
         .event_handler(Handler { db })
         .await
         .expect("Error creating Discord client");
 
+    // Clone the HTTP context for use in the daily report task
+    let http = client.cache_and_http.http.clone();
+    // Create a shared, mutable reference to the client using an Arc<Mutex<>>
+    let shared_client = Arc::new(Mutex::new(client));
+
+    // Spawn a new async task to handle running the Discord bot
     let handler = tokio::spawn(async move {
-        client.start().await.expect("Error starting Discord client");
+        // The channel ID to send the daily reports
+        let channel_id = ChannelId(1054296641651347486); // Replace with the specific channel ID
+                                                         // Start the daily report in a new async task
+        send_daily_report(http, channel_id).await;
+
+        // Lock the shared client for use in this task
+        let mut locked_client = shared_client.lock().await;
+        // Start the Discord client and handle any errors
+        locked_client
+            .start()
+            .await
+            .expect("Error starting Discord client");
     });
 
     handler

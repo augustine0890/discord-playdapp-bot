@@ -1,8 +1,10 @@
 use bson::Bson;
+use chrono::{Duration, Utc};
 use futures::stream::StreamExt;
-use mongodb::bson::doc;
+use mongodb::bson::{doc, DateTime};
 use mongodb::error::Error;
 use mongodb::error::Result as MongoResult;
+use mongodb::results::DeleteResult;
 use mongodb::{
     options::{ClientOptions, FindOneOptions, FindOptions},
     Client, Database,
@@ -117,5 +119,17 @@ impl MongoDB {
             .await?;
 
         Ok(())
+    }
+
+    pub async fn clean_activity_documents(&self) -> Result<DeleteResult, Error> {
+        let activity_collection = self.db.collection::<mongodb::bson::Document>("activities");
+        let one_month_ago = Utc::now() - Duration::days(30);
+        let one_month_ago_bson = DateTime::from_chrono(one_month_ago);
+
+        let delete_result = activity_collection
+            .delete_many(doc! { "updatedAt": { "$lt": one_month_ago_bson} }, None)
+            .await?;
+
+        Ok(delete_result)
     }
 }

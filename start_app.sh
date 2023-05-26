@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Set sccache as the Rust compiler wrapper
+export RUSTC_WRAPPER=sccache
+
+# Clean your Rust application
+# cargo clean
+
+# Build your Rust application
+cargo build --release
+
 # Check if the application is already running
 if [ -f discord-playdapp-bot.pid ]; then
     OLD_PID=$(cat discord-playdapp-bot.pid)
@@ -15,12 +24,6 @@ fi
 
 # Remove old log and pid files
 rm -f discord-playdapp-bot.log discord-playdapp-bot.pid
-
-# Set sccache as the Rust compiler wrapper
-export RUSTC_WRAPPER=sccache
-
-# Build your Rust application
-cargo build --release
 
 # Start your application in the background, redirect output to a log file,
 # and store its PID in a separate file

@@ -6,12 +6,12 @@ use std::{str::FromStr, sync::Arc};
 use tracing::{error, info};
 
 pub async fn setup_scheduler(database: MongoDB) {
-    // let thursday_schedule = Schedule::from_str("0 */5 * * * *").unwrap(); // every 2 mins
+    // let thursday_schedule = Schedule::from_str("0 */5 * * * *").unwrap(); // every 5 mins
     let thursday_schedule = Schedule::from_str("0 1 0 * * 5").unwrap();
     let friday_schedule = Schedule::from_str("0 1 0 * * 6").unwrap();
     // let friday_schedule = Schedule::from_str("0 */10 * * * *").unwrap(); // every 10 mins
 
-    let database_clone = database.clone();
+    let database_thursday = database.clone();
 
     // Spawn a new task for the Thursday schedule
     tokio::spawn(async move {
@@ -28,7 +28,7 @@ pub async fn setup_scheduler(database: MongoDB) {
                     );
                     tokio::time::sleep(duration).await;
                     // Run task here.
-                    match database_clone.update_all_submitted_to_processing().await {
+                    match database_thursday.update_all_submitted_to_processing().await {
                         Ok(_) => info!("Changed successfully to processing records"),
                         Err(e) => error!("Failed to updated processing records: {}", e),
                     }
@@ -39,6 +39,7 @@ pub async fn setup_scheduler(database: MongoDB) {
         }
     });
 
+    let database_friday = database.clone();
     // Spawn a new task for the Friday schedule
     tokio::spawn(async move {
         let mut now = Utc::now();
@@ -52,7 +53,7 @@ pub async fn setup_scheduler(database: MongoDB) {
                         duration_in_days, next_friday
                     );
                     tokio::time::sleep(duration).await;
-                    match database.update_all_processing_to_completed().await {
+                    match database_friday.update_all_processing_to_completed().await {
                         Ok(_) => info!("Changed successfully to completed records"),
                         Err(e) => error!("Failed to updated completed records: {}", e),
                     }
@@ -62,8 +63,10 @@ pub async fn setup_scheduler(database: MongoDB) {
         }
     });
 
+    let database_monthly = database.clone();
     // The first day of every month
     let monthly = Schedule::from_str("0 0 0 1 * *").unwrap();
+
     tokio::spawn(async move {
         let mut now = Utc::now();
         loop {
@@ -78,7 +81,15 @@ pub async fn setup_scheduler(database: MongoDB) {
                     );
 
                     tokio::time::sleep(duration).await;
-
+                    match database_monthly.clean_activity_documents().await {
+                        Ok(result) => {
+                            let deleted_count = result.deleted_count;
+                            info!("Deleted {} documents", deleted_count);
+                        }
+                        Err(e) => {
+                            error!("Error deleting documents {}", e);
+                        }
+                    };
                     now = Utc::now();
                 }
             }

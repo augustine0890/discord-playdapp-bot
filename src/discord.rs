@@ -365,35 +365,40 @@ pub async fn send_records_to_discord(
     user: &User,
     points: i32,
 ) {
-    let mut embed = CreateEmbed::default();
-    for record in records {
-        let title = format!("{}'s Exchange Records", record.dc_username.clone());
-        let description = format!("Here is your Exchange Record of Discord Points.\nYour current remaining points is **{}**.", points);
-        let items = format!("{} {}(s) 🎟️", record.quantity, record.item);
+    let title = format!("{}'s Exchange Records", user.name);
+    let description = format!(
+        "Here is your Exchange Record of Discord Points.\nYour current remaining points is **{}**.",
+        points
+    );
+    let thumbnail = user.face();
+    let footer_text = format!("Given to {}", user.tag());
+    let footer_icon_url = thumbnail.clone();
 
+    let mut embed = CreateEmbed::default();
+    embed
+        .title(title)
+        .description(description)
+        .color(Color::new(0x00FA9A))
+        .thumbnail(thumbnail)
+        .footer(|f| f.text(footer_text).icon_url(footer_icon_url))
+        .timestamp(chrono::Utc::now().to_rfc3339());
+
+    for record in records {
+        let items = format!("{} {}(s) 🎟️", record.quantity, record.item);
         embed
-            .title(title)
-            .description(description)
             .field("Item", items, true)
             .field("Status", format!("{:?}", record.status), true)
             .field(
                 "Time (UTC)",
                 record.updated_at.format("%Y-%m-%d %H:%M"),
                 true,
-            )
-            .color(Color::new(0x00FA9A)) // note: Colour is the UK spelling of Color
-            .thumbnail(user.face())
-            .footer(|f| {
-                f.text(format!("Given to {}", user.tag()))
-                    .icon_url(user.face())
-            })
-            .timestamp(chrono::Utc::now().to_rfc3339());
+            );
     }
 
     if let Err(why) = channel_id
         .send_message(&ctx.http, |m| m.set_embed(embed))
         .await
     {
-        println!("Error sending message: {:?}", why);
+        info!("Error sending message: {:?}", why);
     }
 }

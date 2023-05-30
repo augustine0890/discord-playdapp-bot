@@ -68,16 +68,16 @@ impl MongoDB {
             .map(|_| ())
     }
 
-    pub async fn get_user_records(&self, dc_id: String) -> Result<Vec<Exchange>, Error> {
+    pub async fn get_user_records(&self, dc_id: u64) -> Result<Vec<Exchange>, Error> {
         let exchange_collection = self.db.collection::<mongodb::bson::Document>("exchange");
         let filter = doc! {
-            "dc_id": dc_id,
+            "dcId": dc_id as i64,
             // "status": { "$in": [Bson::String(ExchangeStatus::Submitted.to_string()), Bson::String(ExchangeStatus::Processing.to_string())] }
         };
         let options = FindOptions::builder()
             .projection(doc! {
                 "_id": 0,
-                "dc_username": 1,
+                "dcUsername": 1,
                 "item": 1,
                 "quantity": 1,
                 "status": 1,

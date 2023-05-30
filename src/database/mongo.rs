@@ -123,11 +123,14 @@ impl MongoDB {
 
     pub async fn clean_activity_documents(&self) -> Result<DeleteResult, Error> {
         let activity_collection = self.db.collection::<mongodb::bson::Document>("activities");
-        let one_month_ago = Utc::now() - Duration::days(30);
-        let one_month_ago_bson = DateTime::from_chrono(one_month_ago);
+        let about_five_weeks_ago = Utc::now() - Duration::weeks(5);
+        let about_five_weeks_ago_bson = DateTime::from_chrono(about_five_weeks_ago);
 
         let delete_result = activity_collection
-            .delete_many(doc! { "updatedAt": { "$lt": one_month_ago_bson} }, None)
+            .delete_many(
+                doc! { "updatedAt": { "$lt": about_five_weeks_ago_bson} },
+                None,
+            )
             .await?;
 
         Ok(delete_result)

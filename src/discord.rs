@@ -207,7 +207,7 @@ impl Handler {
         // Create an Exchange record
         let exchange = Exchange {
             id: None,
-            dc_id: command.user.id.to_string(),
+            dc_id: command.user.id.into(),
             dc_username: command.user.name.to_string(),
             wallet_address: wallet_address.clone(), // If it can be `None` and it's an error case
             item: ITEM_TICKET.to_string(),
@@ -276,7 +276,7 @@ impl Handler {
         }
 
         if msg.content == "!cr" || msg.content == "!check-records" {
-            let records = self.db.get_user_records(msg.author.id.to_string()).await?;
+            let records = self.db.get_user_records(msg.author.id.into()).await?;
             if records.is_empty() {
                 msg.reply(
                     &ctx.http,

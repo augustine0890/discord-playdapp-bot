@@ -25,9 +25,11 @@ impl fmt::Display for ExchangeStatus {
 pub struct Exchange {
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
     pub id: Option<ObjectId>,
-    #[serde(skip_deserializing)]
-    pub dc_id: String,
+    #[serde(rename = "dcId", skip_deserializing)]
+    pub dc_id: u64,
+    #[serde(rename = "dcUsername")]
     pub dc_username: String,
+    #[serde(rename = "walletAddress")]
     pub wallet_address: Option<String>,
     pub item: String,
     pub quantity: i64,

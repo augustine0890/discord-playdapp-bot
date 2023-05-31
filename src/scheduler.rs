@@ -81,7 +81,7 @@ pub async fn setup_scheduler(database: MongoDB) {
                     );
 
                     tokio::time::sleep(duration).await;
-                    match database_monthly.clean_activity_documents().await {
+                    match database_monthly.clean_documents().await {
                         Ok(result) => {
                             let deleted_count = result.deleted_count;
                             info!("Deleted {} documents", deleted_count);

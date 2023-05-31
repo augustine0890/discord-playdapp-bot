@@ -121,8 +121,8 @@ impl MongoDB {
         Ok(())
     }
 
-    pub async fn clean_activity_documents(&self) -> Result<DeleteResult, Error> {
-        let activity_collection = self.db.collection::<mongodb::bson::Document>("activities");
+    pub async fn clean_documents(&self) -> Result<DeleteResult, Error> {
+        let activity_collection = self.db.collection::<mongodb::bson::Document>("activity");
         let about_five_weeks_ago = Utc::now() - Duration::weeks(5);
         let about_five_weeks_ago_bson = DateTime::from_chrono(about_five_weeks_ago);
 

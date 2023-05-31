@@ -10,7 +10,7 @@ use mongodb::{
     Client, Database,
 };
 
-use super::models::{Exchange, ExchangeStatus};
+use super::models::{Activity, ActivityType, Exchange, ExchangeStatus};
 
 #[derive(Clone)]
 pub struct MongoDB {
@@ -134,5 +134,27 @@ impl MongoDB {
             .await?;
 
         Ok(delete_result)
+    }
+
+    pub async fn add_react_poll_activity(&self, new_activity: Activity) -> Result<(), Error> {
+        let activity_collection = self.db.collection::<mongodb::bson::Document>("activity");
+        let today = Utc::now();
+        // let bson_today = Bson::DateTime(today.into());
+        let filter = doc! {
+            "dcId": new_activity.dc_id as i64,
+            "activity": { "$in": [Bson::String(ActivityType::Poll.to_string())] },
+            "createdAt": { "$gte": today}
+        };
+
+        // Count the number of documents that match the filter
+        let count = activity_collection.count_documents(filter, None).await?;
+        // If the count is less than or equal to 0, add the new activity
+        if count <= 0 {
+            let new_activity_doc = bson::to_bson(&new_activity)?.as_document().unwrap().clone();
+            activity_collection
+                .insert_one(new_activity_doc, None)
+                .await?;
+        };
+        Ok(())
     }
 }

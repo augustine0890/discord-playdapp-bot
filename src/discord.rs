@@ -66,7 +66,7 @@ impl EventHandler for Handler {
     // When the reaction is added in Discord
     async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
         // add activity points based on the reaction poll.
-        if let Err(why) = self.react_poll(&ctx, &add_reaction).await {
+        if let Err(why) = self.poll_reaction(&ctx, &add_reaction).await {
             error!("Error adding reaction poll: {:?}", why);
         }
     }
@@ -309,7 +309,7 @@ impl Handler {
         Ok(())
     }
 
-    async fn react_poll(
+    async fn poll_reaction(
         &self,
         ctx: &Context,
         add_reaction: &Reaction,

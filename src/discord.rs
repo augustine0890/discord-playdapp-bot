@@ -10,8 +10,9 @@ use serenity::{
     model::application::interaction::{Interaction, InteractionResponseType},
     model::channel::Message as DiscordMessage,
     model::gateway::{GatewayIntents, Ready},
-    model::id::ChannelId,
+    model::id::{ChannelId, UserId},
     model::prelude::interaction::MessageFlags,
+    model::prelude::Reaction,
     prelude::*,
 };
 
@@ -22,7 +23,7 @@ use std::sync::Arc;
 use tracing::{error, info};
 
 use crate::commands;
-use crate::database::models::{Exchange, ExchangeStatus};
+use crate::database::models::{Activity, ActivityType, Exchange, ExchangeStatus};
 use crate::database::mongo::MongoDB;
 use crate::scheduler::send_daily_report;
 use crate::util::{self, filter_guilds};
@@ -58,7 +59,15 @@ impl EventHandler for Handler {
 
     async fn message(&self, ctx: Context, msg: DiscordMessage) {
         if let Err(why) = self.handle_records_command(&msg, &ctx).await {
-            println!("Error handling records command: {:?}", why);
+            error!("Error handling records command: {:?}", why);
+        }
+    }
+
+    // When the reaction is added in Discord
+    async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
+        // add activity points based on the reaction poll.
+        if let Err(why) = self.react_poll(&ctx, &add_reaction).await {
+            error!("Error adding reaction poll: {:?}", why);
         }
     }
 }
@@ -200,7 +209,7 @@ impl Handler {
 
         // Subtract the required points from the user's points
         self.db
-            .subtract_user_points(&command.user.id.to_string(), required_points)
+            .adjust_user_points(&command.user.id.to_string(), -required_points)
             .await?;
 
         const ITEM_TICKET: &str = "ticket";
@@ -299,6 +308,68 @@ impl Handler {
         }
         Ok(())
     }
+
+    async fn react_poll(
+        &self,
+        ctx: &Context,
+        add_reaction: &Reaction,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        const EASY_POLL: UserId = UserId(437618149505105920);
+        const REWARD_POINTS: i32 = 15;
+
+        // Get the ID of the user who added the reaction.
+        let user_id = match add_reaction.user_id {
+            Some(user_id) => user_id,
+            None => {
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "No user ID found for reaction",
+                )));
+            }
+        };
+
+        // Get the user who added the reaction.
+        let user_name = user_id.to_user(&ctx).await?.name;
+
+        // Get the message id.
+        let message_id = i64::from(add_reaction.message_id);
+
+        // Fetch the message that was reacted to.
+        let message = add_reaction.message(&ctx).await?;
+
+        // Get the author of the message.
+        let author_id = message.author.id;
+
+        // If the author is not EASY_POLL, exit early.
+        if author_id != EASY_POLL {
+            return Ok(());
+        }
+
+        // Create a new activity.
+        let activity = Activity {
+            id: None,
+            dc_id: user_id.into(),
+            dc_username: Some(user_name),
+            activity: Some(ActivityType::Poll),
+            reward: REWARD_POINTS,
+            message_id: Some(message_id),
+            created_at: Utc::now(),
+            ..Default::default()
+        };
+
+        // Add the activity document to the database.
+        if let Ok(true) = self.db.add_react_poll_activity(activity).await {
+            // Convert the UserId to a string.
+            let user_id_str = user_id.to_string();
+
+            // Give points to the user.
+            self.db
+                .adjust_user_points(&user_id_str, REWARD_POINTS)
+                .await?;
+        }
+
+        Ok(())
+    }
 }
 
 pub async fn run_discord_bot(token: &str, db: MongoDB) -> tokio::task::JoinHandle<()> {
@@ -306,7 +377,9 @@ pub async fn run_discord_bot(token: &str, db: MongoDB) -> tokio::task::JoinHandl
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT
         | GatewayIntents::GUILDS
-        | GatewayIntents::GUILD_INTEGRATIONS;
+        | GatewayIntents::GUILD_INTEGRATIONS
+        | GatewayIntents::GUILD_MESSAGE_REACTIONS
+        | GatewayIntents::DIRECT_MESSAGE_REACTIONS;
     // Build the Discord client with the token, intents and event handler
     let client = Client::builder(&token, intents)
         .event_handler(Handler { db })

@@ -43,6 +43,7 @@ pub struct Exchange {
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+#[serde(rename_all = "lowercase")]
 pub enum ActivityType {
     Attend,
     React,
@@ -63,7 +64,7 @@ impl fmt::Display for ActivityType {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Activity {
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
     pub id: Option<ObjectId>,
@@ -83,7 +84,4 @@ pub struct Activity {
     #[serde(rename = "createdAt", skip_deserializing)]
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub created_at: chrono::DateTime<Utc>,
-    #[serde(rename = "updatedAt", skip_deserializing)]
-    #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
-    pub updated_at: chrono::DateTime<Utc>,
 }

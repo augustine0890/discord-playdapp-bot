@@ -9,6 +9,7 @@ use mongodb::{
     options::{ClientOptions, FindOneOptions, FindOptions},
     Client, Database,
 };
+use tracing::error;
 
 use super::models::{Activity, ActivityType, Exchange, ExchangeStatus};
 
@@ -62,10 +63,10 @@ impl MongoDB {
         let user_collection = self.db.collection::<mongodb::bson::Document>("users");
         let filter = doc! {"_id": user_id};
         let update = doc! {"$inc": {"points": points }};
-        user_collection
-            .update_one(filter, update, None)
-            .await
-            .map(|_| ())
+        if let Err(e) = user_collection.update_one(filter, update, None).await {
+            error!("Error updating user points: {}", e);
+        }
+        Ok(())
     }
 
     pub async fn get_user_records(&self, dc_id: u64) -> Result<Vec<Exchange>, Error> {
@@ -136,25 +137,29 @@ impl MongoDB {
         Ok(delete_result)
     }
 
-    pub async fn add_react_poll_activity(&self, new_activity: Activity) -> Result<(), Error> {
+    pub async fn add_react_poll_activity(&self, new_activity: Activity) -> Result<bool, Error> {
         let activity_collection = self.db.collection::<mongodb::bson::Document>("activity");
-        let today = Utc::now();
-        // let bson_today = Bson::DateTime(today.into());
+        let today = Utc::now().date_naive().and_hms_opt(0, 0, 0).unwrap();
+        let datetime_utc: chrono::DateTime<Utc> = chrono::DateTime::from_utc(today, Utc);
+
         let filter = doc! {
             "dcId": new_activity.dc_id as i64,
-            "activity": { "$in": [Bson::String(ActivityType::Poll.to_string())] },
-            "createdAt": { "$gte": today}
+            "activity": Bson::String(ActivityType::Poll.to_string()),
+            "createdAt": { "$gte": datetime_utc }
         };
 
         // Count the number of documents that match the filter
         let count = activity_collection.count_documents(filter, None).await?;
+
         // If the count is less than or equal to 0, add the new activity
         if count <= 0 {
             let new_activity_doc = bson::to_bson(&new_activity)?.as_document().unwrap().clone();
             activity_collection
                 .insert_one(new_activity_doc, None)
                 .await?;
-        };
-        Ok(())
+            return Ok(true);
+        }
+
+        Ok(false)
     }
 }

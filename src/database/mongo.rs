@@ -20,7 +20,9 @@ pub struct MongoDB {
 
 impl MongoDB {
     pub async fn new(uri: &str) -> Result<Self, Error> {
-        let client_options = ClientOptions::parse(uri).await?;
+        let mut client_options = ClientOptions::parse(uri).await?;
+        client_options.connect_timeout = Some(std::time::Duration::from_secs(10));
+
         let client =
             Client::with_options(client_options).expect("Failed to connect to MongoDB client");
 

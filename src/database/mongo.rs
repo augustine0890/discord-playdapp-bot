@@ -131,7 +131,7 @@ impl MongoDB {
 
         let delete_result = activity_collection
             .delete_many(
-                doc! { "updatedAt": { "$lt": about_five_weeks_ago_bson} },
+                doc! { "createdAt": { "$lt": about_five_weeks_ago_bson} },
                 None,
             )
             .await?;

@@ -145,7 +145,10 @@ impl MongoDB {
         let filter = doc! {
             "dcId": new_activity.dc_id as i64,
             "activity": Bson::String(ActivityType::Poll.to_string()),
-            "createdAt": { "$gte": datetime_utc }
+            "$or": [
+                { "messageId": new_activity.message_id },
+                { "createdAt": { "$gte": datetime_utc } }
+            ]
         };
 
         // Count the number of documents that match the filter

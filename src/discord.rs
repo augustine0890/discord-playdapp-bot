@@ -1,6 +1,7 @@
 use ethers::types::Address;
 use ethers::utils::to_checksum;
 use serenity::builder::CreateEmbed;
+use serenity::model::prelude::GuildId;
 use serenity::model::user::User;
 use serenity::utils::Color;
 use serenity::{
@@ -23,6 +24,7 @@ use std::sync::Arc;
 use tracing::{error, info};
 
 use crate::commands;
+use crate::config::EnvConfig;
 use crate::database::models::{Activity, ActivityType, Exchange, ExchangeStatus};
 use crate::database::mongo::MongoDB;
 use crate::scheduler::send_daily_report;
@@ -30,6 +32,7 @@ use crate::util::{self, filter_guilds};
 
 pub struct Handler {
     pub db: MongoDB,
+    pub config: EnvConfig,
 }
 
 #[async_trait]
@@ -316,13 +319,16 @@ impl Handler {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         const EASY_POLL: UserId = UserId(437618149505105920);
         const REWARD_POINTS: i32 = 15;
+
         // Specify the ID of the channel you want to send to.
-        let attendance_channel: ChannelId = match env::var("ATTENDANCE_CHANNEL") {
-            Ok(channel_str) => match channel_str.parse::<u64>() {
-                Ok(channel_id) => ChannelId(channel_id),
-                Err(_) => panic!("Failed to parse ATTENDANCE_CHANNEL as u64"),
-            },
-            Err(_) => panic!("ATTENDANCE_CHANNEL not found in environment"),
+        let attendance_channel: ChannelId = match self.config.attendance_channel.parse::<u64>() {
+            Ok(channel_id) => ChannelId(channel_id),
+            Err(_) => panic!("Failed to parse ATTENDANCE_CHANNEL as u64"),
+        };
+
+        let guild: GuildId = match self.config.discord_guild.parse::<u64>() {
+            Ok(guild_id) => GuildId(guild_id),
+            Err(_) => panic!("Failed to parse DISCORD_GUILD as u64"),
         };
 
         // Get the ID of the user who added the reaction.
@@ -343,6 +349,8 @@ impl Handler {
         // Get the message id.
         let message_id = i64::from(add_reaction.message_id);
 
+        // let emoji_name = add_reaction.emoji.name().unwrap_or_default().to_string();
+
         // Fetch the message that was reacted to.
         let message = add_reaction.message(&ctx).await?;
         // Get the guild id
@@ -354,7 +362,7 @@ impl Handler {
 
         // If the content is not created by EASY_POLL or if the user trying to access it is EASY_POLL, we terminate the function early.
         // This ensures only content from EASY_POLL is processed and that EASY_POLL cannot modify/access its own content.
-        if author_id != EASY_POLL || user_id == EASY_POLL || user.bot {
+        if author_id != EASY_POLL || user_id == EASY_POLL || user.bot || guild_id == guild {
             return Ok(());
         }
 
@@ -395,7 +403,11 @@ impl Handler {
     }
 }
 
-pub async fn run_discord_bot(token: &str, db: MongoDB) -> tokio::task::JoinHandle<()> {
+pub async fn run_discord_bot(
+    token: &str,
+    db: MongoDB,
+    config: EnvConfig,
+) -> tokio::task::JoinHandle<()> {
     // Define the necessary gateway intents
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT
@@ -405,7 +417,7 @@ pub async fn run_discord_bot(token: &str, db: MongoDB) -> tokio::task::JoinHandl
         | GatewayIntents::DIRECT_MESSAGE_REACTIONS;
     // Build the Discord client with the token, intents and event handler
     let client = Client::builder(&token, intents)
-        .event_handler(Handler { db })
+        .event_handler(Handler { db, config })
         .await
         .expect("Error creating Discord client");
 

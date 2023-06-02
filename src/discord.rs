@@ -316,6 +316,14 @@ impl Handler {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         const EASY_POLL: UserId = UserId(437618149505105920);
         const REWARD_POINTS: i32 = 15;
+        // Specify the ID of the channel you want to send to.
+        let attendance_channel: ChannelId = match env::var("ATTENDANCE_CHANNEL") {
+            Ok(channel_str) => match channel_str.parse::<u64>() {
+                Ok(channel_id) => ChannelId(channel_id),
+                Err(_) => panic!("Failed to parse ATTENDANCE_CHANNEL as u64"),
+            },
+            Err(_) => panic!("ATTENDANCE_CHANNEL not found in environment"),
+        };
 
         // Get the ID of the user who added the reaction.
         let user_id = match add_reaction.user_id {
@@ -336,6 +344,9 @@ impl Handler {
 
         // Fetch the message that was reacted to.
         let message = add_reaction.message(&ctx).await?;
+        // Get the guild id
+        let guild_id = message.guild_id.unwrap_or_default();
+        let message_channel_id = message.channel_id;
 
         // Get the author of the message.
         let author_id = message.author.id;
@@ -366,6 +377,16 @@ impl Handler {
             self.db
                 .adjust_user_points(&user_id_str, REWARD_POINTS)
                 .await?;
+
+            // Format the message to send
+            let content = format!(
+                "<@{}> got 15 points from participating in the [Quiz & Poll] (https://discord.com/channels/{}/{}/{}) in <#{}> channel 👏🏻",
+                user_id, guild_id, message_channel_id, message_id, message_channel_id
+            );
+            // Send the message
+            if let Err(why) = attendance_channel.say(&ctx.http, &content).await {
+                error!("Error sending the reaction poll message: {:?}", why);
+            }
         }
 
         Ok(())

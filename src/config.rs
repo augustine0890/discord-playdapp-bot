@@ -9,7 +9,7 @@ pub struct Config {
     pub production: EnvConfig,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct EnvConfig {
     pub discord_token: String,
     pub mongo_uri: String,

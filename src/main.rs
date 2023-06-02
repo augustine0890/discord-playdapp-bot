@@ -29,7 +29,7 @@ async fn main() {
     });
 
     // Run the Discord bot
-    let discord_bot_handle = run_discord_bot(&config.discord_token, db).await;
+    let discord_bot_handle = run_discord_bot(&config.discord_token, db, config.clone()).await;
     if let Err(why) = discord_bot_handle.await {
         error!("An error occurred while connecting to Discord: {}", why);
     }

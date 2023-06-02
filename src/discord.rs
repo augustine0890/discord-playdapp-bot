@@ -351,8 +351,9 @@ impl Handler {
         // Get the author of the message.
         let author_id = message.author.id;
 
-        // If the author is not EASY_POLL, exit early.
-        if author_id != EASY_POLL {
+        // If the content is not created by EASY_POLL or if the user trying to access it is EASY_POLL, we terminate the function early.
+        // This ensures only content from EASY_POLL is processed and that EASY_POLL cannot modify/access its own content.
+        if author_id != EASY_POLL || user_id == EASY_POLL {
             return Ok(());
         }
 

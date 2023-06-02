@@ -144,20 +144,35 @@ impl MongoDB {
         let today = Utc::now().date_naive().and_hms_opt(0, 0, 0).unwrap();
         let datetime_utc: chrono::DateTime<Utc> = chrono::DateTime::from_utc(today, Utc);
 
+        // Filter to match activities by the same user, of the same type, on the same day
         let filter = doc! {
             "dcId": new_activity.dc_id as i64,
             "activity": Bson::String(ActivityType::Poll.to_string()),
-            "$or": [
-                { "messageId": new_activity.message_id },
-                { "createdAt": { "$gte": datetime_utc } }
-            ]
+            "createdAt": { "$gte": datetime_utc }
         };
 
-        // Count the number of documents that match the filter
-        let count = activity_collection.count_documents(filter, None).await?;
+        // Get the message id
+        let message_id = new_activity.message_id.unwrap();
 
-        // If the count is less than or equal to 0, add the new activity
-        if count <= 0 {
+        // Fetch the documents that match the filter
+        let cursor = activity_collection.find(filter, None).await?;
+
+        // Count the total number of activities and the number with the same messageId
+        let (total_count, message_count) = cursor
+            .fold((0, 0), |(total, message), doc| async move {
+                let doc = doc.unwrap();
+                let total = total + 1;
+                let message = if doc.get_i64("messageId").unwrap_or_default() == message_id {
+                    message + 1
+                } else {
+                    message
+                };
+                (total, message)
+            })
+            .await;
+
+        // If the total count is less than 2 and the message count is 0, add the new activity
+        if total_count < 2 && message_count == 0 {
             let new_activity_doc = bson::to_bson(&new_activity)?.as_document().unwrap().clone();
             activity_collection
                 .insert_one(new_activity_doc, None)

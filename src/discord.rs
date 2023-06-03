@@ -1,7 +1,6 @@
 use ethers::types::Address;
 use ethers::utils::to_checksum;
 use serenity::builder::CreateEmbed;
-use serenity::model::prelude::GuildId;
 use serenity::model::user::User;
 use serenity::utils::Color;
 use serenity::{
@@ -326,8 +325,8 @@ impl Handler {
             Err(_) => panic!("Failed to parse ATTENDANCE_CHANNEL as u64"),
         };
 
-        let guild: GuildId = match self.config.discord_guild.parse::<u64>() {
-            Ok(guild_id) => GuildId(guild_id),
+        let guild: u64 = match self.config.discord_guild.parse::<u64>() {
+            Ok(guild_id) => guild_id,
             Err(_) => panic!("Failed to parse DISCORD_GUILD as u64"),
         };
 
@@ -349,20 +348,27 @@ impl Handler {
         // Get the message id.
         let message_id = i64::from(add_reaction.message_id);
 
+        // Get the guild id
+        let guild_id = match add_reaction.guild_id {
+            Some(id) => id.0, // Get the inner u64 value
+            None => {
+                // Handle the case where there's no guild_id. This could involve returning an error or a dummy u64.
+                // We'll return a dummy value (0) for this example.
+                0
+            }
+        };
+
         // let emoji_name = add_reaction.emoji.name().unwrap_or_default().to_string();
 
         // Fetch the message that was reacted to.
         let message = add_reaction.message(&ctx).await?;
-        // Get the guild id
-        let guild_id = message.guild_id.unwrap_or_default();
         let message_channel_id = message.channel_id;
 
         // Get the author of the message.
         let author_id = message.author.id;
 
-        // If the content is not created by EASY_POLL or if the user trying to access it is EASY_POLL, we terminate the function early.
-        // This ensures only content from EASY_POLL is processed and that EASY_POLL cannot modify/access its own content.
-        if author_id != EASY_POLL || user_id == EASY_POLL || user.bot || guild_id == guild {
+        // Ignore the reaction if: it's not to a message from EASY_POLL, it's from EASY_POLL or a bot, or it's not from the specified guild.
+        if author_id != EASY_POLL || user_id == EASY_POLL || user.bot || guild_id != guild {
             return Ok(());
         }
 
@@ -413,6 +419,7 @@ pub async fn run_discord_bot(
         | GatewayIntents::MESSAGE_CONTENT
         | GatewayIntents::GUILDS
         | GatewayIntents::GUILD_INTEGRATIONS
+        | GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::GUILD_MESSAGE_REACTIONS
         | GatewayIntents::DIRECT_MESSAGE_REACTIONS;
     // Build the Discord client with the token, intents and event handler

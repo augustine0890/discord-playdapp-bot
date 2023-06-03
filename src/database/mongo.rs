@@ -145,41 +145,46 @@ impl MongoDB {
         let datetime_utc: chrono::DateTime<Utc> = chrono::DateTime::from_utc(today, Utc);
 
         // Filter to match activities by the same user, of the same type, on the same day
-        let filter = doc! {
+        let filter_today = doc! {
             "dcId": new_activity.dc_id as i64,
             "activity": Bson::String(ActivityType::Poll.to_string()),
             "createdAt": { "$gte": datetime_utc }
         };
 
-        // Get the message id
-        let message_id = new_activity.message_id.unwrap();
+        // Count the total number of activities today directly
+        let total_count_today = activity_collection
+            .count_documents(filter_today, None)
+            .await?;
 
-        // Fetch the documents that match the filter
-        let cursor = activity_collection.find(filter, None).await?;
-
-        // Count the total number of activities and the number with the same messageId
-        let (total_count, message_count) = cursor
-            .fold((0, 0), |(total, message), doc| async move {
-                let doc = doc.unwrap();
-                let total = total + 1;
-                let message = if doc.get_i64("messageId").unwrap_or_default() == message_id {
-                    message + 1
-                } else {
-                    message
-                };
-                (total, message)
-            })
-            .await;
-
-        // If the total count is less than 2 and the message count is 0, add the new activity
-        if total_count < 2 && message_count == 0 {
-            let new_activity_doc = bson::to_bson(&new_activity)?.as_document().unwrap().clone();
-            activity_collection
-                .insert_one(new_activity_doc, None)
-                .await?;
-            return Ok(true);
+        // If the total count today is already 2, return false
+        if total_count_today >= 2 {
+            return Ok(false);
         }
 
-        Ok(false)
+        // Filter to match activities by the same user with the same message id, regardless of the day
+        let filter_message_id = doc! {
+            "dcId": new_activity.dc_id as i64,
+            "activity": Bson::String(ActivityType::Poll.to_string()),
+            "messageId": new_activity.message_id.unwrap()
+        };
+
+        // Count if there is already an activity with the same message id directly
+        let has_same_message_id = activity_collection
+            .count_documents(filter_message_id, None)
+            .await?
+            > 0;
+
+        // If there is already an activity with the same message id, return false
+        if has_same_message_id {
+            return Ok(false);
+        }
+
+        // If conditions are met, add the new activity
+        let new_activity_doc = bson::to_bson(&new_activity)?.as_document().unwrap().clone();
+        activity_collection
+            .insert_one(new_activity_doc, None)
+            .await?;
+
+        Ok(true)
     }
 }

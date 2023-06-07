@@ -32,6 +32,15 @@ pub async fn setup_scheduler(database: MongoDB) {
                         Ok(_) => info!("Changed successfully to processing records"),
                         Err(e) => error!("Failed to updated processing records: {}", e),
                     }
+
+                    // Sleep for 5 minutes.
+                    tokio::time::sleep(tokio::time::Duration::from_secs(300)).await;
+
+                    match database_thursday.update_all_submitted_to_processing().await {
+                        Ok(_) => info!("Changed successfully to processing records"),
+                        Err(e) => error!("Failed to updated processing records: {}", e),
+                    }
+
                     // Update "now" for the next iteration.
                     now = Utc::now();
                 }
@@ -57,6 +66,16 @@ pub async fn setup_scheduler(database: MongoDB) {
                         Ok(_) => info!("Changed successfully to completed records"),
                         Err(e) => error!("Failed to updated completed records: {}", e),
                     }
+
+                    // Sleep for 5 minutes.
+                    tokio::time::sleep(tokio::time::Duration::from_secs(300)).await;
+
+                    match database_friday.update_all_processing_to_completed().await {
+                        Ok(_) => info!("Changed successfully to completed records"),
+                        Err(e) => error!("Failed to updated completed records: {}", e),
+                    }
+
+                    // Update "now" for the next iteration.
                     now = Utc::now();
                 }
             }

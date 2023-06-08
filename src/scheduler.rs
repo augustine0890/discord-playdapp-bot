@@ -27,18 +27,23 @@ pub async fn setup_scheduler(database: MongoDB) {
                         duration_in_days, next_thursday
                     );
                     tokio::time::sleep(duration).await;
+
+                    // Try to run task here until it succeeds.
+                    let mut task_succeeded = false;
+
                     // Run task here.
-                    match database_thursday.update_all_submitted_to_processing().await {
-                        Ok(_) => info!("Changed successfully to processing records"),
-                        Err(e) => error!("Failed to updated processing records: {}", e),
-                    }
-
-                    // Sleep for 5 minutes.
-                    tokio::time::sleep(tokio::time::Duration::from_secs(300)).await;
-
-                    match database_thursday.update_all_submitted_to_processing().await {
-                        Ok(_) => info!("Changed successfully to processing records"),
-                        Err(e) => error!("Failed to updated processing records: {}", e),
+                    while !task_succeeded {
+                        match database_thursday.update_all_submitted_to_processing().await {
+                            Ok(_) => {
+                                info!("Changed successfully to processing records");
+                                task_succeeded = true;
+                            }
+                            Err(e) => {
+                                error!("Failed to updated processing records: {}", e);
+                                // Sleep for 5 minutes before retrying.
+                                tokio::time::sleep(tokio::time::Duration::from_secs(300)).await;
+                            }
+                        }
                     }
 
                     // Update "now" for the next iteration.
@@ -62,17 +67,21 @@ pub async fn setup_scheduler(database: MongoDB) {
                         duration_in_days, next_friday
                     );
                     tokio::time::sleep(duration).await;
-                    match database_friday.update_all_processing_to_completed().await {
-                        Ok(_) => info!("Changed successfully to completed records"),
-                        Err(e) => error!("Failed to updated completed records: {}", e),
-                    }
 
-                    // Sleep for 5 minutes.
-                    tokio::time::sleep(tokio::time::Duration::from_secs(300)).await;
+                    let mut task_succeeded = false;
 
-                    match database_friday.update_all_processing_to_completed().await {
-                        Ok(_) => info!("Changed successfully to completed records"),
-                        Err(e) => error!("Failed to updated completed records: {}", e),
+                    while !task_succeeded {
+                        match database_friday.update_all_processing_to_completed().await {
+                            Ok(_) => {
+                                info!("Changed successfully to completed records");
+                                task_succeeded = true;
+                            }
+                            Err(e) => {
+                                error!("Failed to updated completed records: {}", e);
+                                // Sleep for 5 minutes.
+                                tokio::time::sleep(tokio::time::Duration::from_secs(300)).await;
+                            }
+                        }
                     }
 
                     // Update "now" for the next iteration.

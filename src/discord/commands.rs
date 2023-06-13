@@ -353,8 +353,6 @@ impl Handler {
             }
         };
 
-        // let emoji_name = add_reaction.emoji.name().unwrap_or_default().to_string();
-
         // Fetch the message that was reacted to.
         let message = add_reaction.message(&ctx).await?;
         let message_channel_id = message.channel_id;
@@ -408,11 +406,14 @@ impl Handler {
         ctx: &Context,
         reaction: &Reaction,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        const DEDUCT_POINTS: i32 = -10;
+        const REACT_POINTS: i32 = 3;
+        // const RECEIVE_POINTS: i32 = 10;
+
         let attendance_channel: ChannelId = match self.config.attendance_channel.parse::<u64>() {
             Ok(channel_id) => ChannelId(channel_id),
             Err(_) => panic!("Failed to parse ATTENDANCE_CHANNEL as u64"),
         };
-
         let user_id = match reaction.user_id {
             Some(user_id) => user_id,
             None => {
@@ -423,7 +424,14 @@ impl Handler {
             }
         };
 
-        let user_id_str = user_id.to_string();
+        // Get the user who added the reaction.
+        let user = user_id.to_user(&ctx).await?;
+        let user_name = &user.name;
+        // Get the message id.
+        let message_id = i64::from(reaction.message_id);
+        // Fetch the message that was reacted to.
+        let message = reaction.message(&ctx).await?;
+        let message_channel_id = message.channel_id;
 
         let emoji_name = match &reaction.emoji {
             ReactionType::Custom { name, .. } => name.as_ref().map(|s| s.as_str()),
@@ -441,19 +449,63 @@ impl Handler {
             }
         };
 
+        // Check the bad emoji
         if BAD_EMOJI.contains(emoji_name) {
-            const DEDUCT_POINTS: i32 = -10;
             self.db
-                .adjust_user_points(&user_id_str, DEDUCT_POINTS)
+                .adjust_user_points(&user_id.to_string(), DEDUCT_POINTS)
                 .await?;
-
             let content = format!(
                 "<@{}> got 10 points deducted for reacting {} in the <#{}> channel.",
                 user_id, emoji_name, attendance_channel.0
             );
 
             if let Err(why) = attendance_channel.say(&ctx.http, &content).await {
-                error!("Error sending the reaction poll message: {:?}", why);
+                error!("Error sending the deduction message: {:?}", why);
+            }
+
+            return Ok(());
+        }
+
+        // Get the author of the message.
+        let author = message.author;
+
+        // Ignore the attendance channel
+        if message_channel_id == attendance_channel || author.bot || user.bot || (author == user) {
+            return Ok(());
+        }
+
+        // Create a new react activity.
+        let react_activity = Activity {
+            id: None,
+            dc_id: user_id.into(),
+            dc_username: Some(user_name.to_string()),
+            channel_id: Some(message_channel_id.into()),
+            activity: Some(ActivityType::React),
+            reward: REACT_POINTS,
+            message_id: Some(message_id),
+            emoji: Some(emoji_name.to_string()),
+            created_at: Utc::now(),
+            ..Default::default()
+        };
+
+        // Add the react activity document to the database.
+        if let Ok(true) = self.db.add_reaction_activity(react_activity).await {
+            // Convert the UserId to a string.
+            let user_id_str = user_id.to_string();
+
+            // Give points to the user.
+            self.db
+                .adjust_user_points(&user_id_str, REACT_POINTS)
+                .await?;
+
+            // Format the message to send
+            let content = format!(
+                "<@{}> got 3 points from reacting {} in the <#{}> channel.",
+                user_id, emoji_name, message_channel_id
+            );
+            // Send the message
+            if let Err(why) = attendance_channel.say(&ctx.http, &content).await {
+                error!("Error sending the reaction (receive) message: {:?}", why);
             }
         }
 

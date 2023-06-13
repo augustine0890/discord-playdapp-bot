@@ -42,7 +42,7 @@ pub struct Exchange {
     pub updated_at: chrono::DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+#[derive(Serialize, PartialEq, Deserialize, Clone, Copy, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum ActivityType {
     Attend,

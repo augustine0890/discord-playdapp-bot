@@ -12,7 +12,7 @@ use serenity::{
     model::gateway::{GatewayIntents, Ready},
     model::id::{ChannelId, UserId},
     model::prelude::interaction::MessageFlags,
-    model::prelude::Reaction,
+    model::prelude::{Reaction, ReactionType},
     prelude::*,
 };
 
@@ -27,7 +27,7 @@ use crate::config::EnvConfig;
 use crate::database::models::{Activity, ActivityType, Exchange, ExchangeStatus};
 use crate::database::mongo::MongoDB;
 use crate::scheduler::send_daily_report;
-use crate::util::{self, filter_guilds};
+use crate::util::{self, filter_guilds, BAD_EMOJI};
 
 pub struct Handler {
     pub db: MongoDB,
@@ -69,6 +69,11 @@ impl EventHandler for Handler {
     async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
         // add activity points based on the reaction poll.
         if let Err(why) = self.poll_reaction(&ctx, &add_reaction).await {
+            error!("Error adding reaction poll: {:?}", why);
+        }
+
+        // add activity points based on the reaction type.
+        if let Err(why) = self.reaction_activity(&ctx, &add_reaction).await {
             error!("Error adding reaction poll: {:?}", why);
         }
     }
@@ -400,6 +405,63 @@ impl Handler {
                 user_id, guild_id, message_channel_id, message_id, message_channel_id
             );
             // Send the message
+            if let Err(why) = attendance_channel.say(&ctx.http, &content).await {
+                error!("Error sending the reaction poll message: {:?}", why);
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn reaction_activity(
+        &self,
+        ctx: &Context,
+        reaction: &Reaction,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let attendance_channel: ChannelId = match self.config.attendance_channel.parse::<u64>() {
+            Ok(channel_id) => ChannelId(channel_id),
+            Err(_) => panic!("Failed to parse ATTENDANCE_CHANNEL as u64"),
+        };
+
+        let user_id = match reaction.user_id {
+            Some(user_id) => user_id,
+            None => {
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "No user ID found for reaction",
+                )));
+            }
+        };
+
+        let user_id_str = user_id.to_string();
+
+        let emoji_name = match &reaction.emoji {
+            ReactionType::Custom { name, .. } => name.as_ref().map(|s| s.as_str()),
+            ReactionType::Unicode(s) => Some(s.as_str()),
+            _ => None,
+        };
+
+        let emoji_name = match emoji_name {
+            Some(emoji_name) => emoji_name,
+            None => {
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Emoji name not found",
+                )));
+            }
+        };
+
+        if BAD_EMOJI.contains(emoji_name) {
+            const DEDUCT_POINTS: i32 = -10;
+            self.db
+                .adjust_user_points(&user_id_str, DEDUCT_POINTS)
+                .await?;
+
+            let content = format!(
+                "<@{}> got 10 points deducted for reacting {} in the <#{}> channel.",
+                user_id, emoji_name, attendance_channel.0
+            );
+
             if let Err(why) = attendance_channel.say(&ctx.http, &content).await {
                 error!("Error sending the reaction poll message: {:?}", why);
             }

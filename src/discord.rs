@@ -287,11 +287,34 @@ impl Handler {
             },
             Err(_) => panic!("ATTENDANCE_CHANNEL not found in environment"),
         };
+
+        let user: &User = &msg.author;
+        let user_points = self
+            .db
+            .get_user_points(&msg.author.id.to_string())
+            .await
+            .unwrap_or_default();
+
+        if msg.content == "!cp" || msg.content == "!check-point" {
+            if msg.channel_id != attendance_channel {
+                msg.reply(
+                    &ctx.http,
+                    format!(
+                        "{} Please go to the <#{}> channel for Daily Attendance and Points Checking.",
+                        msg.author.mention(), attendance_channel
+                    ),
+                )
+                .await?;
+                return Ok(());
+            }
+            send_check_points(ctx, msg.channel_id, user, user_points).await;
+        }
+
         if msg.channel_id != attendance_channel {
             return Ok(());
         }
 
-        if msg.content == "!cr" || msg.content == "!check-records" {
+        if msg.content == "!cr" || msg.content == "!check-record" {
             let records = self.db.get_user_records(msg.author.id.into()).await?;
             if records.is_empty() {
                 msg.reply(
@@ -305,14 +328,9 @@ impl Handler {
                 return Ok(());
             }
 
-            let user: &User = &msg.author;
-            let user_points = self
-                .db
-                .get_user_points(&msg.author.id.to_string())
-                .await
-                .unwrap_or_default();
             send_records_to_discord(&records, ctx, msg.channel_id, user, user_points).await;
         }
+
         Ok(())
     }
 
@@ -571,6 +589,29 @@ pub async fn send_records_to_discord(
                 true,
             );
     }
+
+    if let Err(why) = channel_id
+        .send_message(&ctx.http, |m| m.set_embed(embed))
+        .await
+    {
+        info!("Error sending message: {:?}", why);
+    }
+}
+
+pub async fn send_check_points(ctx: &Context, channel_id: ChannelId, user: &User, points: i32) {
+    let thumbnail = user.face();
+    let footer_text = format!("Given to {}", user.tag());
+    let footer_icon_url = thumbnail.clone();
+
+    let mut embed = CreateEmbed::default();
+    embed
+        .title("The Cumulative Points")
+        .color(Color::new(0x00AAFF))
+        .thumbnail(thumbnail)
+        .footer(|f| f.text(footer_text).icon_url(footer_icon_url))
+        .timestamp(chrono::Utc::now().to_rfc3339());
+
+    embed.field("Points", format!("{:?}", points), true);
 
     if let Err(why) = channel_id
         .send_message(&ctx.http, |m| m.set_embed(embed))

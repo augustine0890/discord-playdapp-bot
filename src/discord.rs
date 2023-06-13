@@ -63,6 +63,10 @@ impl EventHandler for Handler {
         if let Err(why) = self.handle_records_command(&msg, &ctx).await {
             error!("Error handling records command: {:?}", why);
         }
+
+        if let Err(why) = self.handle_points_command(&msg, &ctx).await {
+            error!("Error handling records command: {:?}", why);
+        }
     }
 
     // When the reaction is added in Discord
@@ -274,6 +278,49 @@ impl Handler {
         Ok(())
     }
 
+    pub async fn handle_points_command(
+        &self,
+        msg: &DiscordMessage,
+        ctx: &Context,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        // Set channel ID
+        let attendance_channel: ChannelId = match env::var("ATTENDANCE_CHANNEL") {
+            Ok(channel_str) => match channel_str.parse::<u64>() {
+                Ok(channel_id) => ChannelId(channel_id),
+                Err(_) => panic!("Failed to parse ATTENDANCE_CHANNEL as u64"),
+            },
+            Err(_) => panic!("ATTENDANCE_CHANNEL not found in environment"),
+        };
+
+        let user: &User = &msg.author;
+        let user_points = self
+            .db
+            .get_user_points(&msg.author.id.to_string())
+            .await
+            .unwrap_or_default();
+
+        if msg.content != "!cp" && msg.content != "!check-point" {
+            return Ok(());
+        }
+
+        if msg.channel_id != attendance_channel {
+            msg.reply(
+                &ctx.http,
+                format!(
+                    "{} Please go to the <#{}> channel for Daily Attendance and Points Checking.",
+                    msg.author.mention(),
+                    attendance_channel
+                ),
+            )
+            .await?;
+            return Ok(());
+        }
+
+        send_check_points(ctx, msg.channel_id, user, user_points).await;
+
+        Ok(())
+    }
+
     pub async fn handle_records_command(
         &self,
         msg: &DiscordMessage,
@@ -295,41 +342,29 @@ impl Handler {
             .await
             .unwrap_or_default();
 
-        if msg.content == "!cp" || msg.content == "!check-point" {
-            if msg.channel_id != attendance_channel {
-                msg.reply(
-                    &ctx.http,
-                    format!(
-                        "{} Please go to the <#{}> channel for Daily Attendance and Points Checking.",
-                        msg.author.mention(), attendance_channel
-                    ),
-                )
-                .await?;
-                return Ok(());
-            }
-            send_check_points(ctx, msg.channel_id, user, user_points).await;
+        if msg.content != "!cr" && msg.content != "!check-record" {
+            return Ok(());
         }
 
         if msg.channel_id != attendance_channel {
             return Ok(());
         }
 
-        if msg.content == "!cr" || msg.content == "!check-record" {
-            let records = self.db.get_user_records(msg.author.id.into()).await?;
-            if records.is_empty() {
-                msg.reply(
-                    &ctx.http,
-                    format!(
-                        "{} No Points Exchange Records found. 🔍\nPlease type “/exchange” to exchange your points to items. 🎁",
-                        msg.author.mention()
-                    ),
-                )
-                .await?;
-                return Ok(());
-            }
+        let records = self.db.get_user_records(msg.author.id.into()).await?;
 
-            send_records_to_discord(&records, ctx, msg.channel_id, user, user_points).await;
+        if records.is_empty() {
+            msg.reply(
+                &ctx.http,
+                format!(
+                    "{} No Points Exchange Records found. 🔍\nPlease type “/exchange” to exchange your points to items. 🎁",
+                    msg.author.mention()
+                ),
+            )
+            .await?;
+            return Ok(());
         }
+
+        send_records_to_discord(&records, ctx, msg.channel_id, user, user_points).await;
 
         Ok(())
     }

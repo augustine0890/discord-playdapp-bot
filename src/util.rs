@@ -1,5 +1,7 @@
 use chrono::{Datelike, Utc};
+use lazy_static::lazy_static;
 use serenity::{model::prelude::*, prelude::*};
+use std::collections::HashSet;
 use tracing::info;
 
 pub fn is_thu() -> bool {
@@ -19,4 +21,28 @@ pub async fn filter_guilds(ctx: &Context, ready: Ready) {
             }
         }
     }
+}
+
+lazy_static! {
+    pub static ref BAD_EMOJI: HashSet<&'static str> = vec![
+        "😠",
+        "😤",
+        "🤮",
+        "💩",
+        "🖕🏻",
+        "🏻",
+        "😾",
+        "💢",
+        "🇰🇵",
+        "👎🏻",
+        "👎🏻🏻",
+        "😡",
+        "👿",
+        "🤬",
+        "🖕",
+        "🖕🏽",
+        "👎"
+    ]
+    .into_iter()
+    .collect();
 }

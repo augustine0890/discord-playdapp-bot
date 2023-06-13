@@ -187,4 +187,31 @@ impl MongoDB {
 
         Ok(true)
     }
+
+    pub async fn add_reaction_activity(&self, activity: Activity) -> Result<bool, Error> {
+        let activity_collection = self.db.collection::<mongodb::bson::Document>("activity");
+        let today = Utc::now().date_naive().and_hms_opt(0, 0, 0).unwrap();
+        let datetime_utc: chrono::DateTime<Utc> = chrono::DateTime::from_utc(today, Utc);
+
+        let reaction = &activity.activity.unwrap();
+        let filter_today = doc! {
+            "dcId": activity.dc_id as i64,
+            "activity": reaction.to_string(),
+            "createdAt": { "$gte": datetime_utc }
+        };
+
+        let record_count = activity_collection
+            .count_documents(filter_today, None)
+            .await?;
+
+        let activity_doc = bson::to_bson(&activity)?.as_document().unwrap().clone();
+        match *reaction {
+            ActivityType::React if record_count > 4 => return Ok(false),
+            ActivityType::Receive if record_count > 9 => return Ok(false),
+            _ => {}
+        }
+        activity_collection.insert_one(activity_doc, None).await?;
+
+        Ok(true)
+    }
 }

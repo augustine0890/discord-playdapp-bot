@@ -3,7 +3,7 @@ use tracing_subscriber;
 
 use discord_playdapp_bot::config::Config;
 use discord_playdapp_bot::database::mongo::MongoDB;
-use discord_playdapp_bot::discord::run_discord_bot;
+use discord_playdapp_bot::discord::handler::run_discord_bot;
 use discord_playdapp_bot::scheduler;
 
 #[tokio::main]

@@ -4,7 +4,7 @@ use serenity::{
     model::{prelude::ChannelId, user::User},
     prelude::Context,
 };
-use tracing::info;
+use tracing::{error, info};
 
 use crate::database::models::Exchange;
 
@@ -73,5 +73,14 @@ pub async fn send_check_points(ctx: &Context, channel_id: ChannelId, user: &User
         .await
     {
         info!("Error sending message: {:?}", why);
+    }
+}
+
+// Helper function to format and send a message to a Discord channel
+pub async fn send_message(ctx: &Context, channel: ChannelId, content: String) {
+    // Try to send the message
+    if let Err(why) = channel.say(&ctx.http, &content).await {
+        // If an error occurs, log it
+        error!("Error sending the reaction message: {:?}", why);
     }
 }

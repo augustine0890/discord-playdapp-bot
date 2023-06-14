@@ -62,12 +62,12 @@ impl EventHandler for Handler {
     async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
         // add activity points based on the reaction poll.
         if let Err(why) = self.poll_reaction(&ctx, &add_reaction).await {
-            error!("Error adding reaction poll: {:?}", why);
+            error!("Error adding polling reaction: {:?}", why);
         }
 
         // add activity points based on the reaction type.
         if let Err(why) = self.reaction_activity(&ctx, &add_reaction).await {
-            error!("Error adding reaction poll: {:?}", why);
+            error!("Error adding reacting activity reaction: {:?}", why);
         }
     }
 }

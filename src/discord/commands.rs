@@ -1,5 +1,6 @@
 use super::embeds::{send_check_points, send_records_to_discord};
 use crate::database::models::{Activity, ActivityType, Exchange, ExchangeStatus};
+use crate::discord::embeds::send_message;
 use crate::util::{self, BAD_EMOJI};
 use chrono::Utc;
 use ethers::types::Address;
@@ -406,76 +407,68 @@ impl Handler {
         ctx: &Context,
         reaction: &Reaction,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        // Constants for points and channel IDs
         const DEDUCT_POINTS: i32 = -10;
         const REACT_POINTS: i32 = 3;
-        // const RECEIVE_POINTS: i32 = 10;
+        const RECEIVE_POINTS: i32 = 10;
+        const ANNOUNCEMENT_CHANNEL: ChannelId = ChannelId(537522976963166218);
 
-        let attendance_channel: ChannelId = match self.config.attendance_channel.parse::<u64>() {
-            Ok(channel_id) => ChannelId(channel_id),
-            Err(_) => panic!("Failed to parse ATTENDANCE_CHANNEL as u64"),
-        };
-        let user_id = match reaction.user_id {
-            Some(user_id) => user_id,
-            None => {
-                return Err(Box::new(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "No user ID found for reaction",
-                )));
-            }
-        };
+        // Parse the attendance channel ID from the configuration
+        let attendance_channel_id = self
+            .config
+            .attendance_channel
+            .parse::<u64>()
+            .map_err(|_| "Failed to parse ATTENDANCE_CHANNEL as u64")?;
+        let attendance_channel = ChannelId(attendance_channel_id);
 
-        // Get the user who added the reaction.
+        // Extract the user ID from the reaction or return an error
+        let user_id = reaction.user_id.ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::Other, "No user ID found for reaction")
+        })?;
+
+        // Fetch the user who reacted and the message that was reacted to
         let user = user_id.to_user(&ctx).await?;
         let user_name = &user.name;
-        // Get the message id.
         let message_id = i64::from(reaction.message_id);
-        // Fetch the message that was reacted to.
         let message = reaction.message(&ctx).await?;
         let message_channel_id = message.channel_id;
 
+        // Extract the name of the emoji used in the reaction or return an error
         let emoji_name = match &reaction.emoji {
             ReactionType::Custom { name, .. } => name.as_ref().map(|s| s.as_str()),
             ReactionType::Unicode(s) => Some(s.as_str()),
             _ => None,
         };
+        let emoji_name = emoji_name.ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::Other, "Emoji name not found")
+        })?;
 
-        let emoji_name = match emoji_name {
-            Some(emoji_name) => emoji_name,
-            None => {
-                return Err(Box::new(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "Emoji name not found",
-                )));
-            }
-        };
-
-        // Check the bad emoji
+        // If a bad emoji was used, deduct points and notify the user
         if BAD_EMOJI.contains(emoji_name) {
             self.db
                 .adjust_user_points(&user_id.to_string(), DEDUCT_POINTS)
                 .await?;
+
             let content = format!(
                 "<@{}> got 10 points deducted for reacting {} in the <#{}> channel.",
                 user_id, emoji_name, attendance_channel.0
             );
 
-            if let Err(why) = attendance_channel.say(&ctx.http, &content).await {
-                error!("Error sending the deduction message: {:?}", why);
-            }
+            send_message(ctx, attendance_channel, content).await;
 
             return Ok(());
         }
 
-        // Get the author of the message.
+        // Fetch the author of the message
         let author = message.author;
-
-        // Ignore the attendance channel
+        // If the reaction is from a bot or to a bot's message, or the author is the same as the user, ignore it
+        // Also if the message comes from the attendance channel, return early
         if message_channel_id == attendance_channel || author.bot || user.bot || (author == user) {
             return Ok(());
         }
 
-        // Create a new react activity.
-        let react_activity = Activity {
+        // Create a new "React" activity
+        let activity = Activity {
             id: None,
             dc_id: user_id.into(),
             dc_username: Some(user_name.to_string()),
@@ -488,25 +481,58 @@ impl Handler {
             ..Default::default()
         };
 
-        // Add the react activity document to the database.
-        if let Ok(true) = self.db.add_reaction_activity(react_activity).await {
-            // Convert the UserId to a string.
+        // Extract the guild ID from the reaction
+        let guild_id = reaction.guild_id.unwrap_or_default().0;
+
+        // Add the "React" activity to the database and award points
+        if let Ok(true) = self.db.add_reaction_activity(activity).await {
             let user_id_str = user_id.to_string();
 
-            // Give points to the user.
             self.db
                 .adjust_user_points(&user_id_str, REACT_POINTS)
                 .await?;
 
-            // Format the message to send
             let content = format!(
-                "<@{}> got 3 points from reacting {} in the <#{}> channel.",
-                user_id, emoji_name, message_channel_id
-            );
-            // Send the message
-            if let Err(why) = attendance_channel.say(&ctx.http, &content).await {
-                error!("Error sending the reaction (receive) message: {:?}", why);
-            }
+            "<@{}> got 3 points from reacting {} on (https://discord.com/channels/{}/{}/{}) in the <#{}> channel.",
+            user_id, emoji_name, guild_id, message_channel_id, message_id, message_channel_id
+        );
+
+            send_message(ctx, attendance_channel, content).await;
+        }
+
+        // If the message comes from the announcement channel, return early
+        // (Reacting to a message in the announcement channel doesn't earn the author any points)
+        if message_channel_id == ANNOUNCEMENT_CHANNEL {
+            return Ok(());
+        }
+        // Create a new "Receive" activity
+        let activity = Activity {
+            id: None,
+            dc_id: author.id.into(),
+            dc_username: Some(author.name.to_string()),
+            channel_id: Some(message_channel_id.into()),
+            activity: Some(ActivityType::Receive),
+            reward: RECEIVE_POINTS,
+            message_id: Some(message_id),
+            emoji: Some(emoji_name.to_string()),
+            created_at: Utc::now(),
+            ..Default::default()
+        };
+
+        // Add the "Receive" activity to the database and award points
+        if let Ok(true) = self.db.add_reaction_activity(activity).await {
+            let author_id_str = author.id.to_string();
+
+            self.db
+                .adjust_user_points(&author_id_str, RECEIVE_POINTS)
+                .await?;
+
+            let content = format!(
+            "<@{}> got 10 points from <@{}>'s reaction {} on (https://discord.com/channels/{}/{}/{}) in the <#{}> channel.",
+            author.id, user_id, emoji_name, guild_id, message_channel_id, message_id, message_channel_id
+        );
+
+            send_message(ctx, attendance_channel, content).await;
         }
 
         Ok(())

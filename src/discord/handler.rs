@@ -54,7 +54,7 @@ impl EventHandler for Handler {
         }
 
         if let Err(why) = self.handle_points_command(&msg, &ctx).await {
-            error!("Error handling records command: {:?}", why);
+            error!("Error handling points command: {:?}", why);
         }
     }
 

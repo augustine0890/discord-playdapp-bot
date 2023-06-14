@@ -13,8 +13,8 @@ pub struct Config {
 pub struct EnvConfig {
     pub discord_token: String,
     pub mongo_uri: String,
-    pub discord_guild: String,
-    pub attendance_channel: String,
+    pub discord_guild: u64,
+    pub attendance_channel: u64,
 }
 
 impl Config {
@@ -36,8 +36,11 @@ impl Config {
 
         env::set_var("DISCORD_TOKEN", &env_config.discord_token);
         env::set_var("MONGO_URI", &env_config.mongo_uri);
-        env::set_var("DISCORD_GUILD", &env_config.discord_guild);
-        env::set_var("ATTENDANCE_CHANNEL", &env_config.attendance_channel);
+        env::set_var("DISCORD_GUILD", &env_config.discord_guild.to_string());
+        env::set_var(
+            "ATTENDANCE_CHANNEL",
+            &env_config.attendance_channel.to_string(),
+        );
 
         Ok(env_config)
     }

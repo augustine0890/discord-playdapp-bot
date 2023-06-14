@@ -19,7 +19,6 @@ use serenity::{
 };
 
 use super::handler::Handler;
-use std::env;
 
 impl Handler {
     pub async fn handle_exchange(
@@ -28,10 +27,10 @@ impl Handler {
         command: ApplicationCommandInteraction,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Check for the correct channel
-        let attendance_channel: u64 = env::var("ATTENDANCE_CHANNEL")?
-            .parse()
-            .expect("ATTENDANCE_CHANNEL must be an integer");
-        if command.channel_id.as_u64() != &attendance_channel {
+        let attendance_channel_id = self.config.attendance_channel;
+        let attendance_channel = ChannelId(attendance_channel_id);
+
+        if command.channel_id != attendance_channel {
             let _ = command
                 .create_interaction_response(&ctx.http, |r| {
                     r.kind(InteractionResponseType::ChannelMessageWithSource)
@@ -216,31 +215,113 @@ impl Handler {
         Ok(())
     }
 
-    pub async fn handle_points_command(
+    // This function is responsible for handling record check commands.
+    pub async fn handle_records_command(
         &self,
         msg: &DiscordMessage,
         ctx: &Context,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        // Set channel ID
-        let attendance_channel: ChannelId = match env::var("ATTENDANCE_CHANNEL") {
-            Ok(channel_str) => match channel_str.parse::<u64>() {
-                Ok(channel_id) => ChannelId(channel_id),
-                Err(_) => panic!("Failed to parse ATTENDANCE_CHANNEL as u64"),
-            },
-            Err(_) => panic!("ATTENDANCE_CHANNEL not found in environment"),
-        };
+        // If the message content is not a record check command, we ignore it and return early.
+        if msg.content != "!cr" && msg.content != "!check-records" {
+            return Ok(());
+        }
 
+        // Extract the guild ID from the configuration
+        let guild: u64 = self.config.discord_guild;
+
+        // Extract the guild ID from the message
+        let guild_id = msg.guild_id.unwrap_or_default().0;
+
+        // If the guild ID from the message does not match the guild ID from the configuration,
+        // we ignore the message and return early.
+        if guild_id != guild {
+            return Ok(());
+        }
+
+        // Extract the attendance channel ID from the configuration
+        let attendance_channel_id = self.config.attendance_channel;
+
+        // Create a ChannelId instance from the attendance channel ID
+        let attendance_channel = ChannelId(attendance_channel_id);
+
+        // If the channel where the message was sent is not the attendance channel,
+        // we ignore the message and return early.
+        if msg.channel_id != attendance_channel {
+            return Ok(());
+        }
+
+        // Extract the user who sent the message
         let user: &User = &msg.author;
+
+        // Get the points of the user from the database
         let user_points = self
             .db
             .get_user_points(&msg.author.id.to_string())
             .await
             .unwrap_or_default();
 
+        // Get the user's record from the database
+        let records = self.db.get_user_records(msg.author.id.into()).await?;
+
+        // If the user has no records,
+        // reply with a message that no record was found and return early.
+        if records.is_empty() {
+            msg.reply(
+                &ctx.http,
+                format!(
+                    "{} No Points Exchange Records found. 🔍\nPlease type “/exchange” to exchange your points to items. 🎁",
+                    msg.author.mention()
+                ),
+            )
+            .await?;
+            return Ok(());
+        }
+
+        // If the user has records, send these records to the attendance channel on Discord.
+        send_records_to_discord(&records, ctx, msg.channel_id, user, user_points).await;
+
+        Ok(())
+    }
+
+    pub async fn handle_points_command(
+        &self,
+        msg: &DiscordMessage,
+        ctx: &Context,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        // Check if the command is meant for checking points.
+        // If not, we simply return early without any operation.
         if msg.content != "!cp" && msg.content != "!check-points" {
             return Ok(());
         }
 
+        // Extract the configured guild ID for the bot.
+        let guild: u64 = self.config.discord_guild;
+
+        // Extract the guild ID from the message.
+        let guild_id = msg.guild_id.unwrap_or_default().0;
+
+        // If the guild ID from the message doesn't match the configured guild,
+        // we don't process the command and return early.
+        if guild_id != guild {
+            return Ok(());
+        }
+
+        // Extract the attendance channel ID from the configuration.
+        let attendance_channel_id = self.config.attendance_channel;
+        let attendance_channel = ChannelId(attendance_channel_id);
+
+        // Extract the user who sent the message.
+        let user: &User = &msg.author;
+
+        // Retrieve the user's points from the database.
+        let user_points = self
+            .db
+            .get_user_points(&msg.author.id.to_string())
+            .await
+            .unwrap_or_default();
+
+        // Check if the message was sent in the attendance channel.
+        // If not, we reply with a message directing the user to the attendance channel.
         if msg.channel_id != attendance_channel {
             msg.reply(
                 &ctx.http,
@@ -254,55 +335,9 @@ impl Handler {
             return Ok(());
         }
 
+        // If the message was in the attendance channel,
+        // we send the user's points information to the channel.
         send_check_points(ctx, msg.channel_id, user, user_points).await;
-
-        Ok(())
-    }
-
-    pub async fn handle_records_command(
-        &self,
-        msg: &DiscordMessage,
-        ctx: &Context,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        // Set channel ID
-        let attendance_channel: ChannelId = match env::var("ATTENDANCE_CHANNEL") {
-            Ok(channel_str) => match channel_str.parse::<u64>() {
-                Ok(channel_id) => ChannelId(channel_id),
-                Err(_) => panic!("Failed to parse ATTENDANCE_CHANNEL as u64"),
-            },
-            Err(_) => panic!("ATTENDANCE_CHANNEL not found in environment"),
-        };
-
-        let user: &User = &msg.author;
-        let user_points = self
-            .db
-            .get_user_points(&msg.author.id.to_string())
-            .await
-            .unwrap_or_default();
-
-        if msg.content != "!cr" && msg.content != "!check-records" {
-            return Ok(());
-        }
-
-        if msg.channel_id != attendance_channel {
-            return Ok(());
-        }
-
-        let records = self.db.get_user_records(msg.author.id.into()).await?;
-
-        if records.is_empty() {
-            msg.reply(
-                &ctx.http,
-                format!(
-                    "{} No Points Exchange Records found. 🔍\nPlease type “/exchange” to exchange your points to items. 🎁",
-                    msg.author.mention()
-                ),
-            )
-            .await?;
-            return Ok(());
-        }
-
-        send_records_to_discord(&records, ctx, msg.channel_id, user, user_points).await;
 
         Ok(())
     }
@@ -312,21 +347,19 @@ impl Handler {
         ctx: &Context,
         add_reaction: &Reaction,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        // Constants for the poll bot and the reward points.
         const EASY_POLL: UserId = UserId(437618149505105920);
         const REWARD_POINTS: i32 = 15;
 
-        // Specify the ID of the channel you want to send to.
-        let attendance_channel: ChannelId = match self.config.attendance_channel.parse::<u64>() {
-            Ok(channel_id) => ChannelId(channel_id),
-            Err(_) => panic!("Failed to parse ATTENDANCE_CHANNEL as u64"),
-        };
+        // Extract the attendance channel ID from the configuration.
+        let attendance_channel_id = self.config.attendance_channel;
+        let attendance_channel = ChannelId(attendance_channel_id);
 
-        let guild: u64 = match self.config.discord_guild.parse::<u64>() {
-            Ok(guild_id) => guild_id,
-            Err(_) => panic!("Failed to parse DISCORD_GUILD as u64"),
-        };
+        // Extract the configured guild ID.
+        let guild: u64 = self.config.discord_guild;
 
-        // Get the ID of the user who added the reaction.
+        // Try to get the user who added the reaction.
+        // If the user cannot be found, return an error.
         let user_id = match add_reaction.user_id {
             Some(user_id) => user_id,
             None => {
@@ -341,17 +374,14 @@ impl Handler {
         let user = user_id.to_user(&ctx).await?;
         let user_name = user.name;
 
-        // Get the message id.
+        // Extract the message ID from the reaction.
         let message_id = i64::from(add_reaction.message_id);
 
-        // Get the guild id
+        // Try to get the guild ID from the reaction.
+        // If the guild ID cannot be found, default to 0.
         let guild_id = match add_reaction.guild_id {
-            Some(id) => id.0, // Get the inner u64 value
-            None => {
-                // Handle the case where there's no guild_id. This could involve returning an error or a dummy u64.
-                // We'll return a dummy value (0) for this example.
-                0
-            }
+            Some(id) => id.0,
+            None => 0,
         };
 
         // Fetch the message that was reacted to.
@@ -361,12 +391,12 @@ impl Handler {
         // Get the author of the message.
         let author_id = message.author.id;
 
-        // Ignore the reaction if: it's not to a message from EASY_POLL, it's from EASY_POLL or a bot, or it's not from the specified guild.
-        if author_id != EASY_POLL || user_id == EASY_POLL || user.bot || guild_id != guild {
+        // Ignore the reaction if it's from a bot, not from the guild or not from EASY_POLL.
+        if user.bot || guild_id != guild || author_id != EASY_POLL || user_id == EASY_POLL {
             return Ok(());
         }
 
-        // Create a new activity.
+        // Construct a new activity to record in the database.
         let activity = Activity {
             id: None,
             dc_id: user_id.into(),
@@ -379,21 +409,21 @@ impl Handler {
         };
 
         // Add the activity document to the database.
+        // If the document was successfully added, award points to the user and send a confirmation message.
         if let Ok(true) = self.db.add_react_poll_activity(activity).await {
-            // Convert the UserId to a string.
-            let user_id_str = user_id.to_string();
-
-            // Give points to the user.
+            // Adjust the user's points in the database.
             self.db
-                .adjust_user_points(&user_id_str, REWARD_POINTS)
+                .adjust_user_points(&user_id.to_string(), REWARD_POINTS)
                 .await?;
 
-            // Format the message to send
+            // Prepare the content for the confirmation message.
             let content = format!(
                 "<@{}> got 15 points from participating in the [Quiz & Poll] (https://discord.com/channels/{}/{}/{}) in <#{}> channel 👏🏻",
                 user_id, guild_id, message_channel_id, message_id, message_channel_id
             );
-            // Send the message
+
+            // Send the message.
+            // Log an error if the message couldn't be sent.
             if let Err(why) = attendance_channel.say(&ctx.http, &content).await {
                 error!("Error sending the reaction poll message: {:?}", why);
             }
@@ -402,38 +432,45 @@ impl Handler {
         Ok(())
     }
 
+    /// This function handles reaction activities in the Discord server.
+    /// It grants or deducts points based on the type of the emoji in the reaction.
     pub async fn reaction_activity(
         &self,
         ctx: &Context,
         reaction: &Reaction,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        // Constants for points and channel IDs
+        // Extract the configured guild ID.
+        let guild: u64 = self.config.discord_guild;
+
+        // Extract the guild ID from the reaction. If it's not the same as the configured guild, return early.
+        let guild_id = reaction.guild_id.unwrap_or_default().0;
+        if guild_id != guild {
+            return Ok(());
+        }
+
+        // Constants for points and channel IDs.
         const DEDUCT_POINTS: i32 = -10;
         const REACT_POINTS: i32 = 3;
         const RECEIVE_POINTS: i32 = 10;
         const ANNOUNCEMENT_CHANNEL: ChannelId = ChannelId(537522976963166218);
 
-        // Parse the attendance channel ID from the configuration
-        let attendance_channel_id = self
-            .config
-            .attendance_channel
-            .parse::<u64>()
-            .map_err(|_| "Failed to parse ATTENDANCE_CHANNEL as u64")?;
+        // Extract the attendance channel ID from the configuration.
+        let attendance_channel_id = self.config.attendance_channel;
         let attendance_channel = ChannelId(attendance_channel_id);
 
-        // Extract the user ID from the reaction or return an error
+        // Try to extract the user ID from the reaction. If it cannot be found, return an error.
         let user_id = reaction.user_id.ok_or_else(|| {
             std::io::Error::new(std::io::ErrorKind::Other, "No user ID found for reaction")
         })?;
 
-        // Fetch the user who reacted and the message that was reacted to
+        // Fetch the user who reacted and the message that was reacted to.
         let user = user_id.to_user(&ctx).await?;
         let user_name = &user.name;
         let message_id = i64::from(reaction.message_id);
         let message = reaction.message(&ctx).await?;
         let message_channel_id = message.channel_id;
 
-        // Extract the name of the emoji used in the reaction or return an error
+        // Try to extract the name of the emoji used in the reaction. If it cannot be found, return an error.
         let emoji_name = match &reaction.emoji {
             ReactionType::Custom { name, .. } => name.as_ref().map(|s| s.as_str()),
             ReactionType::Unicode(s) => Some(s.as_str()),
@@ -443,7 +480,7 @@ impl Handler {
             std::io::Error::new(std::io::ErrorKind::Other, "Emoji name not found")
         })?;
 
-        // If a bad emoji was used, deduct points and notify the user
+        // If a bad emoji was used, deduct points from the user and notify them.
         if BAD_EMOJI.contains(emoji_name) {
             self.db
                 .adjust_user_points(&user_id.to_string(), DEDUCT_POINTS)
@@ -459,15 +496,15 @@ impl Handler {
             return Ok(());
         }
 
-        // Fetch the author of the message
+        // Fetch the author of the message.
         let author = message.author;
-        // If the reaction is from a bot or to a bot's message, or the author is the same as the user, ignore it
-        // Also if the message comes from the attendance channel, return early
+
+        // If the reaction is from a bot, to a bot's message, from the author themselves, or in the attendance channel, ignore it.
         if message_channel_id == attendance_channel || author.bot || user.bot || (author == user) {
             return Ok(());
         }
 
-        // Create a new "React" activity
+        // Construct a new "React" activity.
         let activity = Activity {
             id: None,
             dc_id: user_id.into(),
@@ -481,10 +518,7 @@ impl Handler {
             ..Default::default()
         };
 
-        // Extract the guild ID from the reaction
-        let guild_id = reaction.guild_id.unwrap_or_default().0;
-
-        // Add the "React" activity to the database and award points
+        // Add the activity to the database and grant points to the user.
         if let Ok(true) = self.db.add_reaction_activity(activity).await {
             let user_id_str = user_id.to_string();
 
@@ -500,12 +534,12 @@ impl Handler {
             send_message(ctx, attendance_channel, content).await;
         }
 
-        // If the message comes from the announcement channel, return early
-        // (Reacting to a message in the announcement channel doesn't earn the author any points)
+        // If the message is from the announcement channel, return early (no points are granted for reactions in this channel).
         if message_channel_id == ANNOUNCEMENT_CHANNEL {
             return Ok(());
         }
-        // Create a new "Receive" activity
+
+        // Construct a new "Receive" activity.
         let activity = Activity {
             id: None,
             dc_id: author.id.into(),
@@ -519,7 +553,7 @@ impl Handler {
             ..Default::default()
         };
 
-        // Add the "Receive" activity to the database and award points
+        // Add the activity to the database and grant points to the author of the message.
         if let Ok(true) = self.db.add_reaction_activity(activity).await {
             let author_id_str = author.id.to_string();
 

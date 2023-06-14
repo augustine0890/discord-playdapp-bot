@@ -237,7 +237,7 @@ impl Handler {
             .await
             .unwrap_or_default();
 
-        if msg.content != "!cp" && msg.content != "!check-point" {
+        if msg.content != "!cp" && msg.content != "!check-points" {
             return Ok(());
         }
 
@@ -280,7 +280,7 @@ impl Handler {
             .await
             .unwrap_or_default();
 
-        if msg.content != "!cr" && msg.content != "!check-record" {
+        if msg.content != "!cr" && msg.content != "!check-records" {
             return Ok(());
         }
 

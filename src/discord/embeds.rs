@@ -55,7 +55,7 @@ pub async fn send_records_to_discord(
 
 pub async fn send_check_points(ctx: &Context, channel_id: ChannelId, user: &User, points: i32) {
     let thumbnail = user.face();
-    let footer_text = format!("Given to {}", user.tag());
+    let footer_text = format!("Given to {}", user.name);
     let footer_icon_url = thumbnail.clone();
 
     let mut embed = CreateEmbed::default();
@@ -66,7 +66,7 @@ pub async fn send_check_points(ctx: &Context, channel_id: ChannelId, user: &User
         .footer(|f| f.text(footer_text).icon_url(footer_icon_url))
         .timestamp(chrono::Utc::now().to_rfc3339());
 
-    embed.field("Points", format!("{:?}", points), true);
+    embed.field(user.name.to_string(), format!("{:?}", points), true);
 
     if let Err(why) = channel_id
         .send_message(&ctx.http, |m| m.set_embed(embed))

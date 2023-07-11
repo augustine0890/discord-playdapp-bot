@@ -109,15 +109,22 @@ pub async fn setup_scheduler(database: MongoDB) {
                     );
 
                     tokio::time::sleep(duration).await;
-                    match database_monthly.clean_documents().await {
-                        Ok(result) => {
-                            let deleted_count = result.deleted_count;
-                            info!("Deleted {} documents", deleted_count);
+
+                    let mut task_succeeded = false;
+
+                    while !task_succeeded {
+                        match database_monthly.clean_documents().await {
+                            Ok(result) => {
+                                let deleted_count = result.deleted_count;
+                                info!("Deleted {} documents", deleted_count);
+                                task_succeeded = true
+                            }
+                            Err(e) => {
+                                error!("Error deleting documents {}", e);
+                                tokio::time::sleep(tokio::time::Duration::from_secs(300)).await
+                            }
                         }
-                        Err(e) => {
-                            error!("Error deleting documents {}", e);
-                        }
-                    };
+                    }
                     now = Utc::now();
                 }
             }

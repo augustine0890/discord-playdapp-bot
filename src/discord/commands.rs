@@ -1,7 +1,7 @@
 use super::embeds::{send_check_points, send_records_to_discord};
 use crate::database::models::{Activity, ActivityType, Exchange, ExchangeStatus};
 use crate::discord::embeds::send_message;
-use crate::util::{self, BAD_EMOJI};
+use crate::util::{self, get_monday_of_week, get_week_number, BAD_EMOJI};
 use chrono::Utc;
 use ethers::types::Address;
 use ethers::utils::to_checksum;
@@ -293,6 +293,12 @@ impl Handler {
         if msg.content != "!cp" && msg.content != "!check-points" {
             return Ok(());
         }
+
+        let (year, week) = get_week_number();
+        println!("{} year, {} week", year, week);
+
+        let monday = get_monday_of_week();
+        println!("{:?}", monday);
 
         // Extract the configured guild ID for the bot.
         let guild: u64 = self.config.discord_guild;

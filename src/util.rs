@@ -1,4 +1,5 @@
-use chrono::{Datelike, Utc};
+use chrono::{Datelike, NaiveDate, Utc, Weekday};
+
 use lazy_static::lazy_static;
 use serenity::{model::prelude::*, prelude::*};
 use std::collections::HashSet;
@@ -21,6 +22,25 @@ pub async fn filter_guilds(ctx: &Context, ready: Ready) {
             }
         }
     }
+}
+
+// Returns the current ISO week number as a tuple of (year, week number)
+pub fn get_week_number() -> (i32, u32) {
+    let today = Utc::now();
+    (today.year(), today.iso_week().week())
+}
+
+// Returns a NaiveDate object for the Monday of the current week
+pub fn get_monday_of_week() -> NaiveDate {
+    let today = Utc::now();
+    // Calculate the date of Monday of the current week
+    let target_date = today
+        + chrono::Duration::days(
+            Weekday::Mon.num_days_from_sunday() as i64
+                - today.weekday().num_days_from_sunday() as i64,
+        );
+
+    target_date.date_naive()
 }
 
 lazy_static! {

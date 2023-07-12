@@ -24,3 +24,47 @@ pub fn exchange(
                 .required(true)
         })
 }
+
+pub fn lotto(
+    command: &mut builder::CreateApplicationCommand,
+) -> &mut builder::CreateApplicationCommand {
+    command
+        .name("lotto")
+        .description("Weekly Lottery")
+        .create_option(|option| {
+            option
+                .name("number_one")
+                .description("The first number")
+                .kind(CommandOptionType::Integer)
+                .min_int_value(0)
+                .max_int_value(9)
+                .required(true)
+        })
+        .create_option(|option| {
+            option
+                .name("number_two")
+                .description("The second number")
+                .kind(CommandOptionType::Integer)
+                .min_int_value(0)
+                .max_int_value(9)
+                .required(true)
+        })
+        .create_option(|option| {
+            option
+                .name("number_three")
+                .description("The third number")
+                .kind(CommandOptionType::Integer)
+                .min_int_value(0)
+                .max_int_value(9)
+                .required(true)
+        })
+        .create_option(|option| {
+            option
+                .name("number_four")
+                .description("The fourth number")
+                .kind(CommandOptionType::Integer)
+                .min_int_value(0)
+                .max_int_value(9)
+                .required(true)
+        })
+}

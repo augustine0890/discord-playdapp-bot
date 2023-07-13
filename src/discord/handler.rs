@@ -1,5 +1,6 @@
 use serenity::{
     async_trait,
+    builder::CreateApplicationCommand,
     model::application::command::Command,
     model::application::interaction::Interaction,
     model::channel::Message as DiscordMessage,
@@ -31,6 +32,11 @@ impl EventHandler for Handler {
                 "exchange" => {
                     if let Err(why) = self.handle_exchange(ctx.clone(), command).await {
                         error!("Error handling exchange: {:?}", why);
+                    }
+                }
+                "lotto" => {
+                    if let Err(why) = self.handle_lotto(ctx.clone(), command).await {
+                        error!("Error handling lotto: {:?}", why);
                     }
                 }
                 _ => info!("Command not found"),
@@ -133,7 +139,11 @@ pub async fn setup_global_commands(ctx: &Context) {
         }
     }
 
-    let _ =
-        Command::create_global_application_command(&ctx.http, |command| slash::exchange(command))
-            .await;
+    let command_setups: Vec<fn(&mut CreateApplicationCommand) -> &mut CreateApplicationCommand> =
+        vec![slash::exchange, slash::lotto];
+
+    for setup in command_setups {
+        let _ =
+            Command::create_global_application_command(&ctx.http, |command| setup(command)).await;
+    }
 }

@@ -1,5 +1,6 @@
 use serenity::{
     async_trait,
+    builder::CreateApplicationCommand,
     model::application::command::Command,
     model::application::interaction::Interaction,
     model::channel::Message as DiscordMessage,
@@ -9,7 +10,7 @@ use serenity::{
     prelude::*,
 };
 
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 use tracing::{error, info};
 
 use super::slash;
@@ -31,6 +32,11 @@ impl EventHandler for Handler {
                 "exchange" => {
                     if let Err(why) = self.handle_exchange(ctx.clone(), command).await {
                         error!("Error handling exchange: {:?}", why);
+                    }
+                }
+                "lotto" => {
+                    if let Err(why) = self.handle_lotto(ctx.clone(), command).await {
+                        error!("Error handling lotto: {:?}", why);
                     }
                 }
                 _ => info!("Command not found"),
@@ -121,16 +127,23 @@ pub async fn setup_global_commands(ctx: &Context) {
         .await
         .unwrap();
 
+    let commands_to_delete = ["exchange", "lotto"];
+    let commands_to_delete: HashSet<&str> = commands_to_delete.iter().cloned().collect();
+
     // Loop over the global commands and delete the command named "exchange" if it exists.
     for command in global_commands {
-        if command.name == "exchange" {
+        if commands_to_delete.contains(command.name.as_str()) {
             Command::delete_global_application_command(&ctx.http, command.id)
                 .await
                 .expect("Failed to delete global command");
         }
     }
 
-    let _ =
-        Command::create_global_application_command(&ctx.http, |command| slash::exchange(command))
-            .await;
+    let command_setups: Vec<fn(&mut CreateApplicationCommand) -> &mut CreateApplicationCommand> =
+        vec![slash::exchange, slash::lotto];
+
+    for setup in command_setups {
+        let _ =
+            Command::create_global_application_command(&ctx.http, |command| setup(command)).await;
+    }
 }

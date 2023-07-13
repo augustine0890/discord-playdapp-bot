@@ -15,6 +15,7 @@ pub struct EnvConfig {
     pub mongo_uri: String,
     pub discord_guild: u64,
     pub attendance_channel: u64,
+    pub lotto_channel: u64,
 }
 
 impl Config {

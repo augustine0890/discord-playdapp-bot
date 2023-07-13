@@ -1,7 +1,7 @@
 use super::embeds::{send_check_points, send_records_to_discord};
 use crate::database::models::{Activity, ActivityType, Exchange, ExchangeStatus};
 use crate::discord::embeds::send_message;
-use crate::util::{self, get_monday_of_week, get_week_number, BAD_EMOJI};
+use crate::util::{self, BAD_EMOJI};
 use chrono::Utc;
 use ethers::types::Address;
 use ethers::utils::to_checksum;
@@ -215,6 +215,33 @@ impl Handler {
         Ok(())
     }
 
+    pub async fn handle_lotto(
+        &self,
+        ctx: Context,
+        command: ApplicationCommandInteraction,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let lotto_channel_id = self.config.lotto_channel;
+        let lotto_channel = ChannelId(lotto_channel_id);
+
+        if command.channel_id != lotto_channel {
+            let _ = command
+                .create_interaction_response(&ctx.http, |r| {
+                    r.kind(InteractionResponseType::ChannelMessageWithSource)
+                        .interaction_response_data(|m| {
+                            m.content(format!(
+                                "Please go to the <#{}> channel to participate in the LOTTO game 🎰",
+                                lotto_channel
+                            ))
+                            .flags(MessageFlags::EPHEMERAL)
+                        })
+                })
+                .await;
+            return Ok(());
+        }
+
+        Ok(())
+    }
+
     // This function is responsible for handling record check commands.
     pub async fn handle_records_command(
         &self,
@@ -293,12 +320,6 @@ impl Handler {
         if msg.content != "!cp" && msg.content != "!check-points" {
             return Ok(());
         }
-
-        let (year, week) = get_week_number();
-        println!("{} year, {} week", year, week);
-
-        let monday = get_monday_of_week();
-        println!("{:?}", monday);
 
         // Extract the configured guild ID for the bot.
         let guild: u64 = self.config.discord_guild;

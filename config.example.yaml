@@ -3,6 +3,7 @@ development:
   mongo_uri: "mongodb+srv://username:password@cluster.example.com/database"
   discord_guild: 689541235476310273
   attendance_channel: 792153408679802625
+  lotto_channel: 1128945953781579816
   aws_access_key_id: AKIAIOSFODNN7EXAMPLE
   aws_secret_access_key: 7wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   aws_region: us-east-1
@@ -12,6 +13,7 @@ production:
   mongo_uri: "mongodb+srv://username:password@cluster.example.com/database"
   discord_guild: 689541235476310273
   attendance_channel: 792153408679802625
+  lotto_channel: 1128945953781579816
   aws_access_key_id: AKIAIOSFODNN7EXAMPLE
   aws_secret_access_key: 7wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   aws_region: us-east-1

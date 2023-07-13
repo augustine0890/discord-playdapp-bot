@@ -9,7 +9,7 @@ use serenity::{
     prelude::*,
 };
 
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 use tracing::{error, info};
 
 use super::slash;
@@ -121,9 +121,12 @@ pub async fn setup_global_commands(ctx: &Context) {
         .await
         .unwrap();
 
+    let commands_to_delete = ["exchange", "lotto"];
+    let commands_to_delete: HashSet<&str> = commands_to_delete.iter().cloned().collect();
+
     // Loop over the global commands and delete the command named "exchange" if it exists.
     for command in global_commands {
-        if command.name == "exchange" {
+        if commands_to_delete.contains(command.name.as_str()) {
             Command::delete_global_application_command(&ctx.http, command.id)
                 .await
                 .expect("Failed to delete global command");

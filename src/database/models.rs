@@ -93,7 +93,7 @@ pub struct LottoDraw {
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
     pub id: Option<ObjectId>,
     pub numbers: Vec<i32>,
-    pub year: u32,
+    pub year: i32,
     #[serde(rename = "weekNumber")]
     pub week_number: u32,
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]

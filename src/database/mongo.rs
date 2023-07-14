@@ -13,7 +13,7 @@ use tracing::error;
 
 use crate::util::{generate_numbers, get_week_number};
 
-use super::models::{Activity, ActivityType, Exchange, ExchangeStatus};
+use super::models::{Activity, ActivityType, Exchange, ExchangeStatus, LottoDraw};
 
 #[derive(Clone)]
 pub struct MongoDB {
@@ -221,23 +221,32 @@ impl MongoDB {
         let numbers = generate_numbers();
         let (year, week) = get_week_number();
 
-        let lotto_draw_collection = self.db.collection::<mongodb::bson::Document>("lottoDraw");
+        let lotto_draw_collection = self.db.collection::<mongodb::bson::Document>("lottodraw");
         let filter = doc! {
             "year": year,
-            "week_number": week
+            "weekNumber": week
         };
 
         // Check if a document for this week already exists
         match lotto_draw_collection.find_one(filter.clone(), None).await? {
             // If it does not exist, insert a new one
             None => {
-                let draw = doc! {
-                    "numbers": Bson::Array(numbers.into_iter().map(Bson::Int32).collect()),
-                    "year": year,
-                    "week_number": week,
-                    "date": Utc::now()
+                let draw = LottoDraw {
+                    id: None,
+                    year,
+                    numbers,
+                    week_number: week,
+                    date: Utc::now(),
+                    ..Default::default()
                 };
-                lotto_draw_collection.insert_one(draw, None).await?;
+
+                let draw_doc = bson::to_bson(&draw)
+                    .expect("Failed to serialize")
+                    .as_document()
+                    .cloned()
+                    .expect("Expected BSON Document");
+
+                lotto_draw_collection.insert_one(draw_doc, None).await?;
             }
             // If it exists, do nothing
             Some(_) => {}

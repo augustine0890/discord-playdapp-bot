@@ -134,7 +134,7 @@ pub async fn setup_scheduler(database: MongoDB) {
     let db_handle = database.clone();
     // The schedule string represents "at 00:00:00 on every Monday"
     let weekly_schedule = Schedule::from_str("0 0 0 * * 2").unwrap();
-    // let weekly_schedule = Schedule::from_str("0 */2 * * * *").unwrap();
+    // let weekly_schedule = Schedule::from_str("0 */1 * * * *").unwrap();
 
     tokio::spawn(async move {
         let mut current_time = Utc::now();

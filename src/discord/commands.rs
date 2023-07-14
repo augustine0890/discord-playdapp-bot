@@ -1,7 +1,7 @@
 use super::embeds::{send_check_points, send_records_to_discord};
-use crate::database::models::{Activity, ActivityType, Exchange, ExchangeStatus};
+use crate::database::models::{Activity, ActivityType, Exchange, ExchangeStatus, LottoGuess};
 use crate::discord::embeds::send_message;
-use crate::util::{self, BAD_EMOJI};
+use crate::util::{self, get_week_number, BAD_EMOJI};
 use chrono::Utc;
 use ethers::types::Address;
 use ethers::utils::to_checksum;
@@ -239,7 +239,107 @@ impl Handler {
             return Ok(());
         }
 
-        Ok(())
+        let user_name = match &command.member {
+            Some(member) => member.nick.as_deref().unwrap_or(&member.user.name),
+            None => &command.user.name,
+        };
+
+        let first_number = command
+            .data
+            .options
+            .get(0)
+            .and_then(|o| o.value.as_ref())
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0) as i32;
+        let second_number = command
+            .data
+            .options
+            .get(1)
+            .and_then(|o| o.value.as_ref())
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0) as i32;
+        let third_number = command
+            .data
+            .options
+            .get(2)
+            .and_then(|o| o.value.as_ref())
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0) as i32;
+        let fourth_number = command
+            .data
+            .options
+            .get(3)
+            .and_then(|o| o.value.as_ref())
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0) as i32;
+
+        let user_numbers = vec![first_number, second_number, third_number, fourth_number];
+
+        let (_, current_week) = get_week_number();
+
+        let guess = LottoGuess {
+            id: None,
+            dc_id: command.user.id.into(),
+            dc_username: Some(user_name.to_string()),
+            numbers: user_numbers,
+            week_number: current_week,
+            date: Utc::now(),
+            match_count: None,    // Not sure what match_count is supposed to be
+            is_any_matched: None, // Not sure what is_any_matched is supposed to be
+            points: None,         // Not sure what points is supposed to be
+            dm_sent: None,        // Not sure what dm_sent is supposed to be
+        };
+
+        // Try to add the lotto guess to the database
+        match self.db.add_lotto_guess(guess).await {
+            Ok(true) => {
+                // If we reach here, it means the lotto guess was successfully added to the database.
+                let content = format!(
+            "You have chosen {}, {}, {}, {} for the lotto 🎰\nThe results will be revealed on the upcoming Monday at 03:00 (UTC+0) 😎\nGood luck! 🍀",
+            first_number, second_number, third_number, fourth_number
+        );
+
+                let _ = command
+                    .create_interaction_response(&ctx.http, |r| {
+                        r.kind(InteractionResponseType::ChannelMessageWithSource)
+                            .interaction_response_data(|m| {
+                                m.content(content).flags(MessageFlags::EPHEMERAL)
+                            })
+                    })
+                    .await;
+            }
+            Ok(false) => {
+                // User has already made 3 guesses this week.
+                let content = "You have already made 3 guesses this week. Please wait until next week to play again.";
+
+                let _ = command
+                    .create_interaction_response(&ctx.http, |r| {
+                        r.kind(InteractionResponseType::ChannelMessageWithSource)
+                            .interaction_response_data(|m| {
+                                m.content(content).flags(MessageFlags::EPHEMERAL)
+                            })
+                    })
+                    .await;
+            }
+            Err(e) => {
+                // An error occurred while adding the lotto guess to the database.
+                error!("Error adding lotto guess to the database: {}", e);
+
+                // Send a friendly error message to the user
+                let content = format!("Error: {}", e);
+
+                let _ = command
+                    .create_interaction_response(&ctx.http, |r| {
+                        r.kind(InteractionResponseType::ChannelMessageWithSource)
+                            .interaction_response_data(|m| {
+                                m.content(content).flags(MessageFlags::EPHEMERAL)
+                            })
+                    })
+                    .await;
+            }
+        }
+
+        Ok(()) // Continue the function despite the outcome
     }
 
     // This function is responsible for handling record check commands.

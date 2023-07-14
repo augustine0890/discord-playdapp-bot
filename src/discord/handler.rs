@@ -34,6 +34,11 @@ impl EventHandler for Handler {
                         error!("Error handling exchange: {:?}", why);
                     }
                 }
+                "lotto" => {
+                    if let Err(why) = self.handle_lotto(ctx.clone(), command).await {
+                        error!("Error handling lotto: {:?}", why);
+                    }
+                }
                 _ => info!("Command not found"),
             },
             _ => (),

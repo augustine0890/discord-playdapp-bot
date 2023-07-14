@@ -1,6 +1,7 @@
 use chrono::{Datelike, NaiveDate, Utc, Weekday};
 
 use lazy_static::lazy_static;
+use rand::Rng;
 use serenity::{model::prelude::*, prelude::*};
 use std::collections::HashSet;
 use tracing::info;
@@ -28,6 +29,14 @@ pub async fn filter_guilds(ctx: &Context, ready: Ready) {
 pub fn get_week_number() -> (i32, u32) {
     let today = Utc::now();
     (today.year(), today.iso_week().week())
+}
+
+// Generates a vector of 4 random numbers between 0 and 9
+pub fn generate_numbers() -> Vec<i32> {
+    let mut rng = rand::thread_rng();
+    let numbers: Vec<i32> = (0..4).map(|_| rng.gen_range(0..10)).collect();
+
+    numbers
 }
 
 // Returns a NaiveDate object for the Monday of the current week

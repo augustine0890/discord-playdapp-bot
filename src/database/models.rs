@@ -50,6 +50,7 @@ pub enum ActivityType {
     Receive,
     Awaken,
     Poll,
+    Lotto,
 }
 
 impl fmt::Display for ActivityType {
@@ -60,6 +61,7 @@ impl fmt::Display for ActivityType {
             ActivityType::Receive => write!(f, "receive"),
             ActivityType::Awaken => write!(f, "awaken"),
             ActivityType::Poll => write!(f, "poll"),
+            ActivityType::Lotto => write!(f, "lotto"),
         }
     }
 }
@@ -84,4 +86,37 @@ pub struct Activity {
     #[serde(rename = "createdAt", skip_deserializing)]
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub created_at: chrono::DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct LottoDraw {
+    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    pub id: Option<ObjectId>,
+    pub numbers: Vec<i32>,
+    #[serde(rename = "weekNumber")]
+    pub week_number: u32,
+    #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+    pub date: chrono::DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct LottoGuess {
+    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    pub id: Option<ObjectId>,
+    #[serde(rename = "dcId", skip_deserializing)]
+    pub dc_id: u64,
+    #[serde(rename = "dcUsername", skip_serializing_if = "Option::is_none")]
+    pub dc_username: Option<String>,
+    pub numbers: Vec<i32>,
+    #[serde(rename = "weekNumber")]
+    pub week_number: u32,
+    #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+    pub date: chrono::DateTime<Utc>,
+    #[serde(rename = "matchCount", skip_serializing_if = "Option::is_none")]
+    pub match_count: Option<i32>,
+    #[serde(rename = "isMatched", skip_serializing_if = "Option::is_none")]
+    pub is_any_matched: Option<bool>,
+    pub points: Option<i32>,
+    #[serde(rename = "dmSent", skip_serializing_if = "Option::is_none")]
+    pub dm_sent: Option<bool>,
 }

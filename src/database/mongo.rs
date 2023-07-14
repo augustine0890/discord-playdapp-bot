@@ -11,7 +11,9 @@ use mongodb::{
 };
 use tracing::error;
 
-use super::models::{Activity, ActivityType, Exchange, ExchangeStatus};
+use crate::util::{generate_numbers, get_week_number};
+
+use super::models::{Activity, ActivityType, Exchange, ExchangeStatus, LottoDraw};
 
 #[derive(Clone)]
 pub struct MongoDB {
@@ -213,5 +215,29 @@ impl MongoDB {
         activity_collection.insert_one(activity_doc, None).await?;
 
         Ok(true)
+    }
+
+    pub async fn add_weekly_draw(&self) -> MongoResult<()> {
+        let numbers = generate_numbers();
+        let (_, week) = get_week_number();
+
+        let draw = LottoDraw {
+            numbers,
+            week_number: week,
+            date: Utc::now(),
+            ..Default::default()
+        };
+        // Convert LottoDraw instance to a BSON Document
+        let draw_doc = doc! {
+            "_id": draw.id,
+            "numbers": Bson::Array(draw.numbers.into_iter().map(Bson::Int32).collect()),
+            "week_number": draw.week_number,
+            "date": draw.date
+        };
+
+        let lotto_draw_collection = self.db.collection::<mongodb::bson::Document>("lottoDraw");
+        lotto_draw_collection.insert_one(draw_doc, None).await?;
+
+        Ok(())
     }
 }

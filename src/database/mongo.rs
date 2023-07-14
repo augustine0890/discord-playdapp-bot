@@ -13,7 +13,7 @@ use tracing::error;
 
 use crate::util::{generate_numbers, get_week_number};
 
-use super::models::{Activity, ActivityType, Exchange, ExchangeStatus, LottoDraw};
+use super::models::{Activity, ActivityType, Exchange, ExchangeStatus, LottoDraw, LottoGuess};
 
 #[derive(Clone)]
 pub struct MongoDB {
@@ -253,5 +253,39 @@ impl MongoDB {
         }
 
         Ok(())
+    }
+
+    pub async fn add_lotto_guess(&self, guess: LottoGuess) -> Result<bool, Error> {
+        let guess_collection = self.db.collection::<mongodb::bson::Document>("lottoguess");
+
+        // Check how many guesses the user has made this week
+        let filter = doc! {
+            "dcId": guess.dc_id as i64,
+            "weekNumber": guess.week_number
+        };
+
+        let count = guess_collection.count_documents(filter, None).await?;
+
+        // If the user has made 3 or more guesses this week, return false
+        if count >= 3 {
+            return Ok(false);
+        }
+
+        // Convert LottoGuess instance to a BSON Document
+        let guess_doc = doc! {
+            "dcId": guess.dc_id as i64,
+            "dcUsername": guess.dc_username,
+            "numbers": Bson::Array(guess.numbers.into_iter().map(Bson::Int32).collect()),
+            "weekNumber": guess.week_number,
+            "date": guess.date,
+            "matchCount": guess.match_count,
+            "isMatched": guess.is_any_matched,
+            "points": guess.points,
+            "dmSent": guess.dm_sent
+        };
+
+        guess_collection.insert_one(guess_doc, None).await?;
+
+        Ok(true)
     }
 }

@@ -130,6 +130,52 @@ pub async fn setup_scheduler(database: MongoDB) {
             }
         }
     });
+    // Clone the database instance for use in the new task
+    let db_handle = database.clone();
+    // The schedule string represents "at 00:00:00 on every Monday"
+    let weekly_schedule = Schedule::from_str("0 0 0 * * 2").unwrap();
+    // let weekly_schedule = Schedule::from_str("0 */2 * * * *").unwrap();
+
+    tokio::spawn(async move {
+        let mut current_time = Utc::now();
+        loop {
+            // Get the next scheduled time according to the weekly schedule
+            if let Some(next_scheduled_time) = weekly_schedule.upcoming(chrono::Utc).next() {
+                // If the next scheduled time is in the future...
+                if next_scheduled_time > current_time {
+                    // Calculate the amount of time until the next scheduled event
+                    let sleep_duration = (next_scheduled_time - current_time).to_std().unwrap();
+                    let sleep_days = (sleep_duration.as_secs() as f64 / 86400.0).round();
+                    info!(
+                        "[Draw Generation] Waiting [{} days] until next scheduled event: [{}]",
+                        sleep_days, next_scheduled_time
+                    );
+
+                    // Sleep until the next scheduled event
+                    tokio::time::sleep(sleep_duration).await;
+
+                    let mut task_succeeded = false;
+
+                    // Keep trying to generate the weekly draw until successful
+                    while !task_succeeded {
+                        match db_handle.add_weekly_draw().await {
+                            Ok(_) => {
+                                info!("Successfully generated draw numbers");
+                                task_succeeded = true
+                            }
+                            Err(e) => {
+                                error!("Error generating draw numbers: {}", e);
+                                // If there was an error, wait for a minute before retrying
+                                tokio::time::sleep(tokio::time::Duration::from_secs(60)).await
+                            }
+                        }
+                    }
+                    // Update the current time
+                    current_time = Utc::now();
+                }
+            }
+        }
+    });
 }
 
 pub async fn send_daily_report(http: Arc<Http>, channel_id: ChannelId) {

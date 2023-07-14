@@ -13,7 +13,7 @@ use tracing::error;
 
 use crate::util::{generate_numbers, get_week_number};
 
-use super::models::{Activity, ActivityType, Exchange, ExchangeStatus, LottoDraw};
+use super::models::{Activity, ActivityType, Exchange, ExchangeStatus};
 
 #[derive(Clone)]
 pub struct MongoDB {
@@ -219,24 +219,29 @@ impl MongoDB {
 
     pub async fn add_weekly_draw(&self) -> MongoResult<()> {
         let numbers = generate_numbers();
-        let (_, week) = get_week_number();
-
-        let draw = LottoDraw {
-            numbers,
-            week_number: week,
-            date: Utc::now(),
-            ..Default::default()
-        };
-        // Convert LottoDraw instance to a BSON Document
-        let draw_doc = doc! {
-            "_id": draw.id,
-            "numbers": Bson::Array(draw.numbers.into_iter().map(Bson::Int32).collect()),
-            "week_number": draw.week_number,
-            "date": draw.date
-        };
+        let (year, week) = get_week_number();
 
         let lotto_draw_collection = self.db.collection::<mongodb::bson::Document>("lottoDraw");
-        lotto_draw_collection.insert_one(draw_doc, None).await?;
+        let filter = doc! {
+            "year": year,
+            "week_number": week
+        };
+
+        // Check if a document for this week already exists
+        match lotto_draw_collection.find_one(filter.clone(), None).await? {
+            // If it does not exist, insert a new one
+            None => {
+                let draw = doc! {
+                    "numbers": Bson::Array(numbers.into_iter().map(Bson::Int32).collect()),
+                    "year": year,
+                    "week_number": week,
+                    "date": Utc::now()
+                };
+                lotto_draw_collection.insert_one(draw, None).await?;
+            }
+            // If it exists, do nothing
+            Some(_) => {}
+        }
 
         Ok(())
     }

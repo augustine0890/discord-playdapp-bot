@@ -1,7 +1,7 @@
 use super::embeds::{send_check_points, send_records_to_discord};
 use crate::database::models::{Activity, ActivityType, Exchange, ExchangeStatus, LottoGuess};
 use crate::discord::embeds::send_message;
-use crate::util::{self, get_week_number, BAD_EMOJI};
+use crate::util::{self, calculate_lotto_points, get_week_number, BAD_EMOJI};
 use chrono::Utc;
 use ethers::types::Address;
 use ethers::utils::to_checksum;
@@ -275,19 +275,37 @@ impl Handler {
 
         let user_numbers = vec![first_number, second_number, third_number, fourth_number];
 
-        let (_, current_week) = get_week_number();
+        // Fetch current week number
+        let (year, current_week) = get_week_number();
 
+        // Attempt to retrieve the draw numbers from the database
+        let draw_numbers_result = self.db.get_lotto_draw(year, current_week).await;
+
+        // Unwrap draw numbers or log error and return
+        let draw_numbers = match draw_numbers_result {
+            Ok(numbers) => numbers,
+            Err(e) => {
+                error!("Error fetching lotto draw numbers: {}", e);
+                return Err(Box::new(e) as Box<dyn std::error::Error + Send + Sync>);
+                // Return the error, stopping the function execution
+            }
+        };
+
+        // Calculate matching numbers and corresponding reward points
+        let (matches, reward_points) = calculate_lotto_points(&user_numbers, &draw_numbers);
+
+        // Build a LottoGuess object with calculated data
         let guess = LottoGuess {
             id: None,
             dc_id: command.user.id.into(),
             dc_username: Some(user_name.to_string()),
             numbers: user_numbers,
             week_number: current_week,
-            match_count: Some(0), // Not sure what match_count is supposed to be
-            is_any_matched: Some(false), // Not sure what is_any_matched is supposed to be
-            points: Some(0),      // Not sure what points is supposed to be
-            dm_sent: Some(false),
-            date: Utc::now(),
+            match_count: Some(matches.try_into().unwrap()), // Convert matches to i32
+            is_any_matched: Some(matches > 0), // Boolean flag indicating any match found
+            points: Some(reward_points),       // Reward points
+            dm_sent: Some(false),              // Flag indicating if a direct message was sent
+            date: Utc::now(),                  // Current timestamp
         };
 
         // Try to add the lotto guess to the database
@@ -310,7 +328,7 @@ impl Handler {
             }
             Ok(false) => {
                 // User has already made 3 guesses this week.
-                let content = "You have already made 3 guesses this week. Please wait until next week to play again.";
+                let content = "You have already made 3 guesses this week 😩 Please wait until next week to play again 💪🏻";
 
                 let _ = command
                     .create_interaction_response(&ctx.http, |r| {

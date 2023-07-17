@@ -53,13 +53,14 @@ pub fn get_monday_of_week() -> NaiveDate {
 }
 
 // Calculate the number of points a user gets in the lotte game.
-fn calculate_lotto_points(user_numbers: &[i32], draw_number: &[i32]) -> i32 {
+pub fn calculate_lotto_points(user_numbers: &[i32], draw_numbers: &[i32]) -> (usize, i32) {
     let matches = user_numbers
         .iter()
-        .zip(draw_number.iter())
+        .zip(draw_numbers.iter())
         .filter(|(a, b)| a == b)
         .count();
-    points_for_matches(matches)
+    let points = points_for_matches(matches);
+    (matches, points)
 }
 
 // Calculate the number of points corresponding to a certain number of matches.

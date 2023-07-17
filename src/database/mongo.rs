@@ -309,12 +309,13 @@ impl MongoDB {
             "dcId": guess.dc_id as i64,
             "dcUsername": guess.dc_username,
             "numbers": Bson::Array(guess.numbers.into_iter().map(Bson::Int32).collect()),
+            "year": guess.year,
             "weekNumber": guess.week_number,
             "matchCount": guess.match_count,
             "isMatched": guess.is_any_matched,
             "points": guess.points,
             "dmSent": guess.dm_sent,
-            "date": guess.date,
+            "timestamps": guess.timestamps,
         };
 
         guess_collection.insert_one(guess_doc, None).await?;

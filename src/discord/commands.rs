@@ -283,11 +283,11 @@ impl Handler {
             dc_username: Some(user_name.to_string()),
             numbers: user_numbers,
             week_number: current_week,
+            match_count: Some(0), // Not sure what match_count is supposed to be
+            is_any_matched: Some(false), // Not sure what is_any_matched is supposed to be
+            points: Some(0),      // Not sure what points is supposed to be
+            dm_sent: Some(false),
             date: Utc::now(),
-            match_count: None,    // Not sure what match_count is supposed to be
-            is_any_matched: None, // Not sure what is_any_matched is supposed to be
-            points: None,         // Not sure what points is supposed to be
-            dm_sent: None,        // Not sure what dm_sent is supposed to be
         };
 
         // Try to add the lotto guess to the database

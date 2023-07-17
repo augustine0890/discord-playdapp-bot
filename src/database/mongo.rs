@@ -277,11 +277,11 @@ impl MongoDB {
             "dcUsername": guess.dc_username,
             "numbers": Bson::Array(guess.numbers.into_iter().map(Bson::Int32).collect()),
             "weekNumber": guess.week_number,
-            "date": guess.date,
             "matchCount": guess.match_count,
             "isMatched": guess.is_any_matched,
             "points": guess.points,
-            "dmSent": guess.dm_sent
+            "dmSent": guess.dm_sent,
+            "date": guess.date,
         };
 
         guess_collection.insert_one(guess_doc, None).await?;

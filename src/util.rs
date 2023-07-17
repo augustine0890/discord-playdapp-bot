@@ -52,6 +52,27 @@ pub fn get_monday_of_week() -> NaiveDate {
     target_date.date_naive()
 }
 
+// Calculate the number of points a user gets in the lotte game.
+fn calculate_lotto_points(user_numbers: &[i32], draw_number: &[i32]) -> i32 {
+    let matches = user_numbers
+        .iter()
+        .zip(draw_number.iter())
+        .filter(|(a, b)| a == b)
+        .count();
+    points_for_matches(matches)
+}
+
+// Calculate the number of points corresponding to a certain number of matches.
+fn points_for_matches(matches: usize) -> i32 {
+    match matches {
+        1 => 400,
+        2 => 1000,
+        3 => 5000,
+        4 => 100000,
+        _ => 0,
+    }
+}
+
 lazy_static! {
     pub static ref BAD_EMOJI: HashSet<&'static str> = vec![
         "😠",

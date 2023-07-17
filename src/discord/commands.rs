@@ -342,18 +342,6 @@ impl Handler {
             Err(e) => {
                 // An error occurred while adding the lotto guess to the database.
                 error!("Error adding lotto guess to the database: {}", e);
-
-                // Send a friendly error message to the user
-                let content = format!("Error: {}", e);
-
-                let _ = command
-                    .create_interaction_response(&ctx.http, |r| {
-                        r.kind(InteractionResponseType::ChannelMessageWithSource)
-                            .interaction_response_data(|m| {
-                                m.content(content).flags(MessageFlags::EPHEMERAL)
-                            })
-                    })
-                    .await;
             }
         }
 

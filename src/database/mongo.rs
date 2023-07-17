@@ -255,6 +255,39 @@ impl MongoDB {
         Ok(())
     }
 
+    pub async fn get_lotto_draw(&self, year: i32, week_number: u32) -> Result<Vec<i32>, Error> {
+        let draw_collection = self.db.collection::<mongodb::bson::Document>("lottodraw");
+
+        let filter = doc! {
+            "year": year,
+            "weekNumber": week_number
+        };
+        // Try to find a document with the matching year and week number
+        let result = draw_collection.find_one(filter, None).await?;
+
+        match result {
+            Some(doc) => {
+                // If a document is found, convert the BSON document to LottoDraw
+                match bson::from_bson::<LottoDraw>(bson::Bson::Document(doc)) {
+                    Ok(lotto_draw) => {
+                        // If successful, return the numbers
+                        Ok(lotto_draw.numbers)
+                    }
+                    // If unsuccessful, return an appropriate error
+                    Err(e) => return Err(e.into()),
+                }
+            }
+            None => {
+                // If no document is found, return an appropriate error
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "No matching lotto draw found",
+                )
+                .into())
+            }
+        }
+    }
+
     pub async fn add_lotto_guess(&self, guess: LottoGuess) -> Result<bool, Error> {
         let guess_collection = self.db.collection::<mongodb::bson::Document>("lottoguess");
 

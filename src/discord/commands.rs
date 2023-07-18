@@ -302,11 +302,12 @@ impl Handler {
             numbers: user_numbers,
             year,
             week_number: current_week,
-            match_count: Some(matches.try_into().unwrap()), // Convert matches to i32
+            matched_count: Some(matches.try_into().unwrap()), // Convert matches to i32
             is_any_matched: Some(matches > 0), // Boolean flag indicating any match found
             points: Some(reward_points),       // Reward points
             dm_sent: Some(false),              // Flag indicating if a direct message was sent
-            timestamps: Utc::now(),            // Current timestamp
+            created_at: Utc::now(),            // Current timestamp
+            updated_at: Utc::now(),
         };
 
         // Try to add the lotto guess to the database

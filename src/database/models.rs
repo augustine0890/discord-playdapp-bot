@@ -112,13 +112,17 @@ pub struct LottoGuess {
     pub year: i32,
     #[serde(rename = "weekNumber")]
     pub week_number: u32,
-    #[serde(rename = "matchCount", skip_serializing_if = "Option::is_none")]
-    pub match_count: Option<i32>,
+    #[serde(rename = "matchedCount", skip_serializing_if = "Option::is_none")]
+    pub matched_count: Option<i32>,
     #[serde(rename = "isMatched", skip_serializing_if = "Option::is_none")]
     pub is_any_matched: Option<bool>,
     pub points: Option<i32>,
     #[serde(rename = "dmSent", skip_serializing_if = "Option::is_none")]
     pub dm_sent: Option<bool>,
+    #[serde(rename = "createdAt", skip_deserializing)]
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
-    pub timestamps: chrono::DateTime<Utc>,
+    pub created_at: chrono::DateTime<Utc>,
+    #[serde(rename = "updatedAt")]
+    #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+    pub updated_at: chrono::DateTime<Utc>,
 }

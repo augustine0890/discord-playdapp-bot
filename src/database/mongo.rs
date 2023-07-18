@@ -311,11 +311,12 @@ impl MongoDB {
             "numbers": Bson::Array(guess.numbers.into_iter().map(Bson::Int32).collect()),
             "year": guess.year,
             "weekNumber": guess.week_number,
-            "matchCount": guess.match_count,
+            "matchedCount": guess.matched_count,
             "isMatched": guess.is_any_matched,
             "points": guess.points,
             "dmSent": guess.dm_sent,
-            "timestamps": guess.timestamps,
+            "createdAt": guess.created_at,
+            "updatedAt": guess.updated_at,
         };
 
         guess_collection.insert_one(guess_doc, None).await?;

@@ -1,3 +1,4 @@
+use bson::oid::ObjectId;
 use bson::Bson;
 use chrono::{Duration, Utc};
 use futures::stream::StreamExt;
@@ -322,5 +323,68 @@ impl MongoDB {
         guess_collection.insert_one(guess_doc, None).await?;
 
         Ok(true)
+    }
+
+    pub async fn get_lotto_guesses(
+        &self,
+        year: i32,
+        week_number: u32,
+    ) -> MongoResult<Vec<LottoGuess>> {
+        let lotto_guesses_collection = self.db.collection::<mongodb::bson::Document>("lottoguess");
+
+        // Query to get all LottoGuess documents matching the year, week number, is_any_matched condition, and dm_sent is false
+        let filter = doc! {
+            "year": year,
+            "week_number": week_number,
+            "is_any_matched": true,
+            "dm_sent": false
+        };
+
+        // Perform the query and collect all matching documents into a Vec<LottoGuess>
+        let mut cursor = lotto_guesses_collection.find(filter, None).await?;
+
+        let mut results: Vec<LottoGuess> = Vec::new();
+
+        while let Some(result) = cursor.next().await {
+            match result {
+                Ok(doc) => {
+                    match bson::from_bson::<LottoGuess>(bson::Bson::Document(doc)) {
+                        Ok(lotto_guess) => {
+                            // If successful, add the guess to the results
+                            results.push(lotto_guess);
+                        }
+                        // If unsuccessful, return an appropriate error
+                        Err(e) => return Err(e.into()),
+                    }
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+
+        Ok(results)
+    }
+
+    pub async fn update_dm_sent_flag(&self, id: ObjectId) -> MongoResult<()> {
+        let lotto_guesses_collection = self.db.collection::<mongodb::bson::Document>("lottoguess");
+
+        // Query to match the document with the given ID
+        let filter = doc! {
+            "_id": id,
+        };
+
+        // Update the dm_sent field for the matched document
+        let update = doc! {
+            "$set": {
+                "dmSent": true
+            },
+            "$currentDate": { "updatedAt": true }
+        };
+
+        // Perform the update operation
+        lotto_guesses_collection
+            .update_one(filter, update, None)
+            .await?;
+
+        Ok(())
     }
 }

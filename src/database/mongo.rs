@@ -1,3 +1,4 @@
+use bson::oid::ObjectId;
 use bson::Bson;
 use chrono::{Duration, Utc};
 use futures::stream::StreamExt;
@@ -361,5 +362,29 @@ impl MongoDB {
         }
 
         Ok(results)
+    }
+
+    pub async fn update_dm_sent_flag(&self, id: ObjectId) -> MongoResult<()> {
+        let lotto_guesses_collection = self.db.collection::<mongodb::bson::Document>("lottoguess");
+
+        // Query to match the document with the given ID
+        let filter = doc! {
+            "_id": id,
+        };
+
+        // Update the dm_sent field for the matched document
+        let update = doc! {
+            "$set": {
+                "dmSent": true
+            },
+            "$currentDate": { "updatedAt": true }
+        };
+
+        // Perform the update operation
+        lotto_guesses_collection
+            .update_one(filter, update, None)
+            .await?;
+
+        Ok(())
     }
 }

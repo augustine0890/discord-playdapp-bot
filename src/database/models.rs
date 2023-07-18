@@ -109,6 +109,7 @@ pub struct LottoGuess {
     #[serde(rename = "dcUsername", skip_serializing_if = "Option::is_none")]
     pub dc_username: Option<String>,
     pub numbers: Vec<i32>,
+    pub year: i32,
     #[serde(rename = "weekNumber")]
     pub week_number: u32,
     #[serde(rename = "matchCount", skip_serializing_if = "Option::is_none")]
@@ -119,5 +120,5 @@ pub struct LottoGuess {
     #[serde(rename = "dmSent", skip_serializing_if = "Option::is_none")]
     pub dm_sent: Option<bool>,
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
-    pub date: chrono::DateTime<Utc>,
+    pub timestamps: chrono::DateTime<Utc>,
 }

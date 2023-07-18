@@ -300,12 +300,13 @@ impl Handler {
             dc_id: command.user.id.into(),
             dc_username: Some(user_name.to_string()),
             numbers: user_numbers,
+            year,
             week_number: current_week,
             match_count: Some(matches.try_into().unwrap()), // Convert matches to i32
             is_any_matched: Some(matches > 0), // Boolean flag indicating any match found
             points: Some(reward_points),       // Reward points
             dm_sent: Some(false),              // Flag indicating if a direct message was sent
-            date: Utc::now(),                  // Current timestamp
+            timestamps: Utc::now(),            // Current timestamp
         };
 
         // Try to add the lotto guess to the database

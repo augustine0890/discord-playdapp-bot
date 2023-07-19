@@ -2,9 +2,18 @@ use chrono::{Datelike, NaiveDate, Utc, Weekday};
 
 use lazy_static::lazy_static;
 use rand::Rng;
-use serenity::{model::prelude::*, prelude::*};
+use serenity::http::Http;
+use serenity::Error as SerenityError;
+use serenity::{
+    model::prelude::*,
+    model::{channel::Message, id::UserId},
+    prelude::*,
+};
 use std::collections::HashSet;
+use std::sync::Arc;
 use tracing::info;
+
+use crate::database::models::LottoGuess;
 
 pub fn is_thu() -> bool {
     let now = Utc::now();
@@ -72,6 +81,23 @@ fn points_for_matches(matches: usize) -> i32 {
         4 => 100000,
         _ => 0,
     }
+}
+
+pub async fn send_dm(
+    http: Arc<Http>,
+    entry: LottoGuess,
+    attend_channel: ChannelId,
+) -> Result<Message, SerenityError> {
+    // Convert u64 id to UserId
+    let user_id = UserId(entry.dc_id);
+    // Open a direct message channel with the user
+    let dm_channel = user_id.create_dm_channel(&http).await?;
+
+    let content = format!("Congratulations! 👏🏻👏🏻👏🏻 You got {} number(s) correct and you earned {} points in the lotto! 🎰
+        \nType “!cp” in <#{}> to check your prize! 🎁", entry.matched_count.unwrap_or(0), entry.points.unwrap_or(0), attend_channel);
+
+    // Send the message and return the resulting Message object
+    dm_channel.send_message(&http, |m| m.content(content)).await
 }
 
 lazy_static! {

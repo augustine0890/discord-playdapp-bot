@@ -1,8 +1,12 @@
-use crate::database::mongo::MongoDB;
+use crate::{
+    config::EnvConfig,
+    database::mongo::MongoDB,
+    util::{get_week_number, send_dm},
+};
 use chrono::{NaiveDate, Utc};
 use cron::Schedule;
 use serenity::{http::Http, model::id::ChannelId};
-use std::{str::FromStr, sync::Arc};
+use std::{error::Error, str::FromStr, sync::Arc};
 use tracing::{error, info};
 
 pub async fn setup_scheduler(database: MongoDB) {
@@ -165,6 +169,90 @@ pub async fn setup_scheduler(database: MongoDB) {
                             }
                             Err(e) => {
                                 error!("Error generating draw numbers: {}", e);
+                                // If there was an error, wait for a minute before retrying
+                                tokio::time::sleep(tokio::time::Duration::from_secs(60)).await
+                            }
+                        }
+                    }
+                    // Update the current time
+                    current_time = Utc::now();
+                }
+            }
+        }
+    });
+}
+
+pub async fn process_last_week_lotto_guesses(
+    config: &EnvConfig,
+    database: &MongoDB,
+    http: Arc<Http>,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (mut year, current_week) = get_week_number();
+    let last_week;
+    if current_week == 1 {
+        last_week = 52;
+        year -= 1; // The last week was in the previous year
+    } else {
+        last_week = current_week - 1;
+    }
+
+    // Fetch all entries from the last week with is_any_matched set to true
+    let last_week_entries = database.get_lotto_guesses(year, last_week).await?;
+
+    let attendance_channel_id = config.attendance_channel;
+    let attendance_channel = ChannelId(attendance_channel_id);
+
+    // Iterate over all the matching entries
+    for entry in last_week_entries {
+        // Send DM to the user based on dc_id
+        send_dm(http.clone(), entry.clone(), attendance_channel).await?;
+        // Update the dm_sent flag to true for this entry
+        database.update_dm_sent_flag(entry.id.unwrap()).await?;
+
+        database
+            .adjust_user_points(&entry.dc_id.to_string(), entry.points.unwrap())
+            .await?;
+    }
+
+    Ok(())
+}
+
+pub async fn lotto_game_scheduler(database: Arc<MongoDB>, config: Arc<EnvConfig>, http: Arc<Http>) {
+    // The schedule string represents "at 00:03:00 on every Monday"
+    // let weekly_schedule = Schedule::from_str("0 */1 * * * *").unwrap();
+    let weekly_schedule = Schedule::from_str("0 0 3 * * 2").unwrap();
+
+    tokio::spawn(async move {
+        let mut current_time = Utc::now();
+        loop {
+            // Get the next scheduled time according to the weekly schedule
+            if let Some(next_scheduled_time) = weekly_schedule.upcoming(chrono::Utc).next() {
+                // If the next scheduled time is in the future...
+                if next_scheduled_time > current_time {
+                    // Calculate the amount of time until the next scheduled event
+                    let sleep_duration = (next_scheduled_time - current_time).to_std().unwrap();
+                    let sleep_days = (sleep_duration.as_secs() as f64 / 86400.0).round();
+                    info!(
+                        "[Lotto Game DM] Waiting for [{} days] until next scheduled event: [{}]",
+                        sleep_days, next_scheduled_time
+                    );
+
+                    // Sleep until the next scheduled event
+                    tokio::time::sleep(sleep_duration).await;
+
+                    let mut task_succeeded = false;
+
+                    // Keep trying to process the last week entries until successful
+                    while !task_succeeded {
+                        match process_last_week_lotto_guesses(&*config, &*database, http.clone())
+                            .await
+                        {
+                            Ok(_) => {
+                                info!("[Lotto Game DM] Successfully processed last week entries");
+                                task_succeeded = true
+                            }
+                            Err(e) => {
+                                error!("[Lotto Game DM] Error processing last week entries: {}", e);
                                 // If there was an error, wait for a minute before retrying
                                 tokio::time::sleep(tokio::time::Duration::from_secs(60)).await
                             }

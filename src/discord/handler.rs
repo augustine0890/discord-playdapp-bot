@@ -44,6 +44,11 @@ impl EventHandler for Handler {
                         error!("Error handling lotto guideline: {:?}", why);
                     }
                 }
+                "attendance-guideline" => {
+                    if let Err(why) = self.handle_attendance_guideline(ctx.clone(), command).await {
+                        error!("Error handling attendance guideline: {:?}", why);
+                    }
+                }
                 _ => info!("Command not found"),
             },
             _ => (),
@@ -137,7 +142,12 @@ pub async fn setup_global_commands(ctx: &Context) {
         .await
         .unwrap();
 
-    let commands_to_delete = ["exchange", "lotto", "lotto-guideline"];
+    let commands_to_delete = [
+        "exchange",
+        "lotto",
+        "lotto-guideline",
+        "attendance-guideline",
+    ];
     let commands_to_delete: HashSet<&str> = commands_to_delete.iter().cloned().collect();
 
     // Loop over the global commands and delete the command named "exchange" if it exists.
@@ -149,8 +159,12 @@ pub async fn setup_global_commands(ctx: &Context) {
         }
     }
 
-    let command_setups: Vec<fn(&mut CreateApplicationCommand) -> &mut CreateApplicationCommand> =
-        vec![slash::exchange, slash::lotto, slash::lotto_guideine];
+    let command_setups: Vec<fn(&mut CreateApplicationCommand) -> &mut CreateApplicationCommand> = vec![
+        slash::exchange,
+        slash::lotto,
+        slash::lotto_guideline,
+        slash::attendance_guideline,
+    ];
 
     for setup in command_setups {
         let _ =

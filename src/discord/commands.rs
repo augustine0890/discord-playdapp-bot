@@ -350,6 +350,100 @@ impl Handler {
         Ok(()) // Continue the function despite the outcome
     }
 
+    pub async fn handle_lotto_guideline(
+        &self,
+        ctx: Context,
+        command: ApplicationCommandInteraction,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let lotto_channel_id = self.config.lotto_channel;
+        let lotto_channel = ChannelId(lotto_channel_id);
+        let content = format!(
+            "**Welcome to PlayDapp Weekly Lotto!~**:partying_face: :slot_machine: \
+            \n\n*How to join?*🤩 \
+            \n1. Go to <#{}> channel. \
+            \n2. Type **\"/lotto\"** and enter your 4 choices of single-digit numbers (i.e., between 0-9), e.g., '1', '5', '4', '7'. \
+            \n3. Once you successfully join the lotto, a confirmation message will be displayed!📨 \
+            \n4. Type **\"/checklotto\"** to check your lotto participation status and chosen numbers for the current week. \
+            \n\n*Rules*🧑🏻‍🏫 \
+            \n- Participants need to choose 4 single-digit numbers (i.e., between 0-9). \
+            \n- Both the **integer values** and **position** should match with the winning lotto numbers to win. \
+            \n*Example*: If the winning number is '0', '6', '0', '6'. \
+            \n If Mary chose '1', '0', '6', '9' —> 0 matching number \
+            \n If Sally chose  '1', '3', '4', '6' —> 1 matching number \
+            \n If Tom chose '6', '0', '0', '6' —> 2 matching numbers \
+            \n If David chose '2', '6', '0', '6' —> 3 matching numbers \
+            \n If Corrie chose '0', '6', '0', '6' —> 4 matching numbers \
+            \n\n*Prize*🏆 \
+            \n 0 matching numbers: 0 point \
+            \n 1 matching number: 400 points \
+            \n 2 matching numbers: 1,000 points \
+            \n 3 matching numbers: 5,000 points + Achievement Badges (Level 1) \
+            \n 4 matching numbers: 100,000 points + Achievement Badges (Level 2) \
+            \nWinners will be notified by DM. 📩 \
+            \n\n*Participation guidelines*💰 \
+            \n- **Free of charge for the 1st month**; maximum 3 times of participation per week. \
+            \n- From the 2nd month, the participation fee is 200 points; maximum 5 times of participation per week. \
+            \n\n*When will the Weekly Lotto open?*⏰ \
+            \n- The entry period is **Monday 00:00 - Sun 23:59 (UTC+0)**. \
+            \n- The result of the previous week will be announced on **every Monday 03:00 (UTC+0)**",
+            lotto_channel
+        );
+
+        command
+            .create_interaction_response(&ctx.http, |r| {
+                r.kind(InteractionResponseType::ChannelMessageWithSource)
+                    .interaction_response_data(|m| {
+                        m.content(&content).flags(MessageFlags::EPHEMERAL)
+                    })
+            })
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn handle_attendance_guideline(
+        &self,
+        ctx: Context,
+        command: ApplicationCommandInteraction,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let content = format!(
+            "**Here is an introduction of the Discord Bot beta service** :hugging: \
+            \n1. **Discord bot commands** :speaking_head: \
+            \n    There are 6 types of commands in the attendance channel: \
+            \n    a. `!attend` - Check-in to PlayDapp Discord daily. \
+            \n    b. `!cp` - Check your current accumulated points. \
+            \n    c. `!rank` - Check the The Cumulative Points TOP 10 Leaderboard. \
+            \n    d. `!myrank` - Check your point ranking. \
+            \n    e. `/exchange` - Exchange your 1000 Discord points into 1 Tournament ticket. \
+            \n    f. `!cr` - Check your points exchange record. \
+            \n\n2. **How to gain points?** :mermaid_tone1: \
+            \n    a. **Check-in Attendance** :man_raising_hand_tone1: \
+            \n   - By typing `!attend`, you can earn up to 50 points per day for daily attendance. The attendance points per day reset at 00:00 (UTC+0). \
+            \n  b. **Giving / Receiving reaction by emoticons** :thumbsup_tone1: \
+            \n   - Leaving an emoticon reaction: 3 points (max: 5 times). \
+            \n   - Receiving an emoticon reaction: 10 points (max: 10 times). \
+            \n   - You can receive up to 115 points per day for emoticons. This resets at 00:00 (UTC+0) every day. \
+            \n\n**Maximum score** :star2: \
+            \nDuring the beta period, the maximum points are 200,000. Once you reach this, you cannot earn points from any activity. Note: This maximum score may change during the beta period. \
+            \n\n**Points to note** \
+            \n- As this is a beta service, points may be initialized during the official points service launch. \
+            \n- Points will be used in various ways, such as future events. \
+            \n\nWe will continue to upgrade Discord functions through this beta service. Our future goal is to provide a complete official service by introducing levels-for-point functions and mini-games to strengthen our community. :people_hugging: :people_hugging: \
+            \n\nThank you for your continuous support. We will work hard to provide a better gaming environment for you all! :sparkling_heart:"
+        );
+
+        command
+            .create_interaction_response(&ctx.http, |r| {
+                r.kind(InteractionResponseType::ChannelMessageWithSource)
+                    .interaction_response_data(|m| {
+                        m.content(content).flags(MessageFlags::EPHEMERAL)
+                    })
+            })
+            .await?;
+
+        Ok(())
+    }
+
     // This function is responsible for handling record check commands.
     pub async fn handle_records_command(
         &self,

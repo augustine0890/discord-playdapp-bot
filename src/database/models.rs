@@ -104,7 +104,7 @@ pub struct LottoDraw {
 pub struct LottoGuess {
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
     pub id: Option<ObjectId>,
-    #[serde(rename = "dcId", skip_deserializing)]
+    #[serde(rename = "dcId")]
     pub dc_id: u64,
     #[serde(rename = "dcUsername", skip_serializing_if = "Option::is_none")]
     pub dc_username: Option<String>,

@@ -182,41 +182,6 @@ pub async fn setup_scheduler(database: MongoDB) {
     });
 }
 
-pub async fn process_last_week_lotto_guesses(
-    config: &EnvConfig,
-    database: &MongoDB,
-    http: Arc<Http>,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let (mut year, current_week) = get_week_number();
-    let last_week;
-    if current_week == 1 {
-        last_week = 52;
-        year -= 1; // The last week was in the previous year
-    } else {
-        last_week = current_week - 1;
-    }
-
-    // Fetch all entries from the last week with is_any_matched set to true
-    let last_week_entries = database.get_lotto_guesses(year, last_week).await?;
-
-    let attendance_channel_id = config.attendance_channel;
-    let attendance_channel = ChannelId(attendance_channel_id);
-
-    // Iterate over all the matching entries
-    for entry in last_week_entries {
-        // Send DM to the user based on dc_id
-        send_dm(http.clone(), entry.clone(), attendance_channel).await?;
-        // Update the dm_sent flag to true for this entry
-        database.update_dm_sent_flag(entry.id.unwrap()).await?;
-
-        database
-            .adjust_user_points(&entry.dc_id.to_string(), entry.points.unwrap())
-            .await?;
-    }
-
-    Ok(())
-}
-
 pub async fn lotto_game_scheduler(database: Arc<MongoDB>, config: Arc<EnvConfig>, http: Arc<Http>) {
     // The schedule string represents "at 00:03:00 on every Monday"
     // let weekly_schedule = Schedule::from_str("0 */1 * * * *").unwrap();
@@ -264,6 +229,41 @@ pub async fn lotto_game_scheduler(database: Arc<MongoDB>, config: Arc<EnvConfig>
             }
         }
     });
+}
+
+pub async fn process_last_week_lotto_guesses(
+    config: &EnvConfig,
+    database: &MongoDB,
+    http: Arc<Http>,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (mut year, current_week) = get_week_number();
+    let last_week;
+    if current_week == 1 {
+        last_week = 52;
+        year -= 1; // The last week was in the previous year
+    } else {
+        last_week = current_week - 1;
+    }
+
+    // Fetch all entries from the last week with is_any_matched set to true
+    let last_week_entries = database.get_lotto_guesses(year, last_week).await?;
+
+    let attendance_channel_id = config.attendance_channel;
+    let attendance_channel = ChannelId(attendance_channel_id);
+
+    // Iterate over all the matching entries
+    for entry in last_week_entries {
+        // Send DM to the user based on dc_id
+        send_dm(http.clone(), entry.clone(), attendance_channel).await?;
+        // Update the dm_sent flag to true for this entry
+        database.update_dm_sent_flag(entry.id.unwrap()).await?;
+
+        database
+            .adjust_user_points(&entry.dc_id.to_string(), entry.points.unwrap())
+            .await?;
+    }
+
+    Ok(())
 }
 
 pub async fn send_daily_report(http: Arc<Http>, channel_id: ChannelId) {

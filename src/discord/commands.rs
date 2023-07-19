@@ -350,6 +350,59 @@ impl Handler {
         Ok(()) // Continue the function despite the outcome
     }
 
+    pub async fn handle_lotto_guideline(
+        &self,
+        ctx: Context,
+        command: ApplicationCommandInteraction,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let lotto_channel_id = self.config.lotto_channel;
+        let lotto_channel = ChannelId(lotto_channel_id);
+
+        let content = format!(
+            "**Welcome to PlayDapp Weekly Lotto!~**:partying_face: :slot_machine:
+            *How to join?*🤩 
+            1. Go to <#{}> channel.\n
+            2. Type **\"/lotto\"** and enter your 4 choices of single-digit numbers (i.e. between 0-9)
+                e.g. '1' , '5' , '4' , '7'.\n
+            3. Once you successfully joined the lotto, a confirmation message will be displayed!📨\n
+            4. Type **\"/checklotto\"** to check your lotto participation status and chosen numbers for the current week.\n
+            *Rules*🧑🏻‍🏫
+            - Participants need to choose 4 single-digit numbers (i.e. between 0-9).
+            - Both the **integer values** and **position** should match with the winning lotto numbers in order to win.
+            e.g. The winning lotto number is '0' , '6' , '0' , '6'.
+                If Mary chose '1' , '0' , '6' , '9' —> she got 0 matching number
+                If Sally chose '1' , '3' , '4' , '6' —> she got 1 matching number
+                If Tom chose '6' , '0' , '0' , '6' —> he got 2 matching numbers
+                If David chose '2' , '6' , '0' , '6' —> he got 3 matching numbers
+                If Corrie chose '0' , '6' , '0' , '6' —> she got 4 matching numbers
+            *Prize* 🏆
+            0 matching number: 0 points
+            1 matching number: 400 points
+            2 matching numbers: 1,000 points
+            3 matching numbers: 5,000 points + Achievement Badges (level 1)
+            4 matching numbers: 100,000 points + Achievement Badges (level 2)
+            Winners will be notified by DM. 📩
+            *Participation guidelines*💰
+            - **Free of charge for the 1st month**; maximum 3 times of participation per week.
+            - Starting from the 2nd month, the participation fee is 200 points; maximum 5 times of participation per week.
+            *When will the Weekly Lotto open?*⏰
+            - The entry period of lotto is **Monday 00:00 - Sun 23:59 (UTC+0)**.
+            - The result of the previous week will be announced on **every Monday 03:00 (UTC+0)**
+        ",
+            lotto_channel
+        );
+
+        let _ = command
+            .create_interaction_response(&ctx.http, |r| {
+                r.kind(InteractionResponseType::ChannelMessageWithSource)
+                    .interaction_response_data(|m| {
+                        m.content(content).flags(MessageFlags::EPHEMERAL)
+                    })
+            })
+            .await;
+        return Ok(());
+    }
+
     // This function is responsible for handling record check commands.
     pub async fn handle_records_command(
         &self,

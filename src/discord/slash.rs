@@ -68,3 +68,11 @@ pub fn lotto(
                 .required(true)
         })
 }
+
+pub fn lotto_guideine(
+    command: &mut builder::CreateApplicationCommand,
+) -> &mut builder::CreateApplicationCommand {
+    command
+        .name("lotto-guideline")
+        .description("The official guideline for Weekly Lotto")
+}

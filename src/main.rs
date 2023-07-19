@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use tracing::{error, info, Level};
 use tracing_subscriber;
 
@@ -29,7 +31,8 @@ async fn main() {
     });
 
     // Run the Discord bot
-    let discord_bot_handle = run_discord_bot(&config.discord_token, db, config.clone()).await;
+    let token = config.discord_token.clone();
+    let discord_bot_handle = run_discord_bot(&token, Arc::new(db), Arc::new(config)).await;
     if let Err(why) = discord_bot_handle.await {
         error!("An error occurred while connecting to Discord: {}", why);
     }

@@ -14,14 +14,14 @@ use std::{collections::HashSet, sync::Arc};
 use tracing::{error, info};
 
 use super::slash;
-use crate::config::EnvConfig;
 use crate::database::mongo::MongoDB;
 use crate::scheduler::send_daily_report;
 use crate::util::filter_guilds;
+use crate::{config::EnvConfig, scheduler::lotto_game_scheduler};
 
 pub struct Handler {
-    pub db: MongoDB,
-    pub config: EnvConfig,
+    pub db: Arc<MongoDB>,
+    pub config: Arc<EnvConfig>,
 }
 
 #[async_trait]
@@ -80,8 +80,8 @@ impl EventHandler for Handler {
 
 pub async fn run_discord_bot(
     token: &str,
-    db: MongoDB,
-    config: EnvConfig,
+    db: Arc<MongoDB>,       // Make sure to pass an Arc<MongoDB> instead of &MongoDB
+    config: Arc<EnvConfig>, // Same with the EnvConfig
 ) -> tokio::task::JoinHandle<()> {
     // Define the necessary gateway intents
     let intents = GatewayIntents::GUILD_MESSAGES
@@ -93,7 +93,10 @@ pub async fn run_discord_bot(
         | GatewayIntents::DIRECT_MESSAGE_REACTIONS;
     // Build the Discord client with the token, intents and event handler
     let client = Client::builder(&token, intents)
-        .event_handler(Handler { db, config })
+        .event_handler(Handler {
+            db: Arc::clone(&db),
+            config: Arc::clone(&config),
+        })
         .await
         .expect("Error creating Discord client");
 
@@ -107,7 +110,9 @@ pub async fn run_discord_bot(
         // The channel ID to send the daily reports
         let channel_id = ChannelId(1054296641651347486); // Replace with the specific channel ID
                                                          // Start the daily report in a new async task
-        send_daily_report(http, channel_id).await;
+        send_daily_report(http.clone(), channel_id).await;
+
+        lotto_game_scheduler(Arc::clone(&db), Arc::clone(&config), http.clone()).await;
 
         // Lock the shared client for use in this task
         let mut locked_client = shared_client.lock().await;

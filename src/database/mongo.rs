@@ -335,9 +335,9 @@ impl MongoDB {
         // Query to get all LottoGuess documents matching the year, week number, is_any_matched condition, and dm_sent is false
         let filter = doc! {
             "year": year,
-            "week_number": week_number,
-            "is_any_matched": true,
-            "dm_sent": false
+            "weekNumber": week_number,
+            "isMatched": true,
+            "dmSent": false
         };
 
         // Perform the query and collect all matching documents into a Vec<LottoGuess>

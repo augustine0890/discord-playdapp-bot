@@ -329,16 +329,20 @@ impl MongoDB {
         &self,
         year: i32,
         week_number: u32,
+        dm_sent: Option<bool>,
     ) -> MongoResult<Vec<LottoGuess>> {
         let lotto_guesses_collection = self.db.collection::<mongodb::bson::Document>("lottoguess");
 
         // Query to get all LottoGuess documents matching the year, week number, is_any_matched condition, and dm_sent is false
-        let filter = doc! {
+        let mut filter = doc! {
             "year": year,
             "weekNumber": week_number,
             "isMatched": true,
-            "dmSent": false
         };
+
+        if let Some(dm_sent_value) = dm_sent {
+            filter.insert("dmSent", dm_sent_value);
+        }
 
         // Perform the query and collect all matching documents into a Vec<LottoGuess>
         let mut cursor = lotto_guesses_collection.find(filter, None).await?;

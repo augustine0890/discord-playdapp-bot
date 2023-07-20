@@ -374,7 +374,7 @@ impl Handler {
             \n If David chose '2', '6', '0', '6' —> 3 matching numbers \
             \n If Corrie chose '0', '6', '0', '6' —> 4 matching numbers \
             \n\n*Prize*🏆 \
-            \n 0 matching numbers: 0 point \
+            \n 0 matching number: 0 point \
             \n 1 matching number: 400 points \
             \n 2 matching numbers: 1,000 points \
             \n 3 matching numbers: 5,000 points + Achievement Badges (Level 1) \
@@ -382,7 +382,7 @@ impl Handler {
             \nWinners will be notified by DM. 📩 \
             \n\n*Participation guidelines*💰 \
             \n- **Free of charge for the 1st month**; maximum 3 times of participation per week. \
-            \n- From the 2nd month, the participation fee is 200 points; maximum 5 times of participation per week. \
+            \n- Starting from the 2nd month, the participation fee is 200 points; maximum 5 times of participation per week. \
             \n\n*When will the Weekly Lotto open?*⏰ \
             \n- The entry period is **Monday 00:00 - Sun 23:59 (UTC+0)**. \
             \n- The result of the previous week will be announced on **every Monday 03:00 (UTC+0)**",
@@ -412,16 +412,16 @@ impl Handler {
             \n    There are 6 types of commands in the attendance channel: \
             \n    a. `!attend` - Check-in to PlayDapp Discord daily. \
             \n    b. `!cp` - Check your current accumulated points. \
-            \n    c. `!rank` - Check the The Cumulative Points TOP 10 Leaderboard. \
+            \n    c. `!rank` - Check the Cumulative Points TOP 10 Leaderboard. \
             \n    d. `!myrank` - Check your point ranking. \
             \n    e. `/exchange` - Exchange your 1000 Discord points into 1 Tournament ticket. \
             \n    f. `!cr` - Check your points exchange record. \
             \n\n2. **How to gain points?** :mermaid_tone1: \
             \n    a. **Check-in Attendance** :man_raising_hand_tone1: \
-            \n   - By typing `!attend`, you can earn up to 50 points per day for daily attendance. The attendance points per day reset at 00:00 (UTC+0). \
+            \n   - By typing `!attend`, you can earn 50 points per day for daily attendance. The attendance points per day reset at 00:00 (UTC+0). \
             \n  b. **Giving / Receiving reaction by emoticons** :thumbsup_tone1: \
-            \n   - Leaving an emoticon reaction: 3 points (max: 5 times). \
-            \n   - Receiving an emoticon reaction: 10 points (max: 10 times). \
+            \n   - Leaving an emoticon reaction: 3 points (max 5 times). \
+            \n   - Receiving an emoticon reaction: 10 points (max 10 times). \
             \n   - You can receive up to 115 points per day for emoticons. This resets at 00:00 (UTC+0) every day. \
             \n\n**Maximum score** :star2: \
             \nDuring the beta period, the maximum points are 200,000. Once you reach this, you cannot earn points from any activity. Note: This maximum score may change during the beta period. \

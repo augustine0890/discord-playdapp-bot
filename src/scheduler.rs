@@ -6,7 +6,7 @@ use crate::{
 use chrono::{NaiveDate, Utc};
 use cron::Schedule;
 use serenity::{http::Http, model::id::ChannelId};
-use std::{error::Error, str::FromStr, sync::Arc};
+use std::{collections::HashMap, error::Error, str::FromStr, sync::Arc};
 use tracing::{error, info};
 
 pub async fn setup_scheduler(database: MongoDB) {
@@ -246,7 +246,9 @@ pub async fn process_last_week_lotto_guesses(
     }
 
     // Fetch all entries from the last week with is_any_matched set to true
-    let last_week_entries = database.get_lotto_guesses(year, last_week).await?;
+    let last_week_entries = database
+        .get_lotto_guesses(year, last_week, Some(false))
+        .await?;
 
     let attendance_channel_id = config.attendance_channel;
     let attendance_channel = ChannelId(attendance_channel_id);
@@ -264,6 +266,148 @@ pub async fn process_last_week_lotto_guesses(
     }
 
     Ok(())
+}
+
+pub async fn send_announcement_lotto_results(
+    config: &EnvConfig,
+    database: &MongoDB,
+    http: Arc<Http>,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let (mut year, current_week) = get_week_number();
+    let last_week;
+    if current_week == 1 {
+        last_week = 52;
+        year -= 1; // The last week was in the previous year
+    } else {
+        last_week = current_week - 1;
+    }
+
+    let winning_numbers = match database.get_lotto_draw(year, last_week).await {
+        Ok(numbers) => numbers,
+        Err(e) => {
+            error!("Error fetching lotto draw numbers: {}", e);
+            return Err(Box::new(e));
+        }
+    };
+
+    let winning_numbers_string = winning_numbers
+        .iter()
+        .map(|n| n.to_string())
+        .collect::<Vec<String>>()
+        .join(", ");
+
+    let lotto_guesses = match database.get_lotto_guesses(year, last_week, None).await {
+        Ok(guesses) => guesses,
+        Err(e) => {
+            error!("Error fetching lotto guesses: {}", e);
+            return Err(Box::new(e));
+        }
+    };
+
+    let mut winners_count: HashMap<i32, i32> = HashMap::new();
+
+    for guess in lotto_guesses {
+        let match_count = guess.matched_count.unwrap_or(0);
+        *winners_count.entry(match_count).or_insert(0) += 1;
+    }
+
+    let mut message = format!(
+        "**Weekly Lotto Results - Week {} 🎰**\n\n\
+        Hello @everyone! We're thrilled to announce the results of this week's lotto! 😆Thank you all for your participation and patience!! The anticipation has been building, and now it's time to reveal the winning numbers! Let's get started🔥 \n\n\
+        **Winning Lotto Numbers: {}**\n\n\
+        **Number of Winners:**\n",
+        last_week,
+        winning_numbers_string,
+    );
+
+    message += &format!(
+        "4️⃣ matching numbers: {}\n",
+        winners_count.get(&4).unwrap_or(&0)
+    );
+    message += &format!(
+        "3️⃣ matching numbers: {}\n",
+        winners_count.get(&3).unwrap_or(&0)
+    );
+    message += &format!(
+        "2️⃣ matching numbers: {}\n",
+        winners_count.get(&2).unwrap_or(&0)
+    );
+    message += &format!(
+        "1️⃣ matching number: {}\n",
+        winners_count.get(&1).unwrap_or(&0)
+    );
+
+    let attendance_channel_id = config.attendance_channel;
+    let attendance_channel = ChannelId(attendance_channel_id);
+
+    message.push_str(&format!("\nWinners, please read the DM 📨 that we sent you and check your prize in <#{}>!🎁 \n\n\
+    Thank you once again to everyone who participated in this week's lotto!🧡 🫶🏻 \n\
+    The entry period will open every Monday 00:00 (UTC+0), get ready for another exciting round of the lotto next week!\n\n\
+    **Good luck to you all!**🍀", attendance_channel));
+
+    let lotto_channel_id = config.lotto_channel;
+    let lotto_channel = ChannelId(lotto_channel_id);
+
+    // send the message
+    let _ = lotto_channel.say(http, message).await;
+
+    Ok(())
+}
+
+pub async fn send_announcement_lotto_scheduler(
+    database: Arc<MongoDB>,
+    config: Arc<EnvConfig>,
+    http: Arc<Http>,
+) {
+    // The schedule string represents "at 00:03:00 on every Monday"
+    // let weekly_schedule = Schedule::from_str("0 */1 * * * *").unwrap();
+    let weekly_schedule = Schedule::from_str("0 0 3 * * 2").unwrap();
+
+    tokio::spawn(async move {
+        let mut current_time = Utc::now();
+        loop {
+            // Get the next scheduled time according to the weekly schedule
+            if let Some(next_scheduled_time) = weekly_schedule.upcoming(chrono::Utc).next() {
+                // If the next scheduled time is in the future...
+                if next_scheduled_time > current_time {
+                    // Calculate the amount of time until the next scheduled event
+                    let sleep_duration = (next_scheduled_time - current_time).to_std().unwrap();
+                    let sleep_days = (sleep_duration.as_secs() as f64 / 86400.0).round();
+                    info!(
+                        "[Lotto Results Announcement] Waiting for [{} days] until next scheduled event: [{}]",
+                        sleep_days, next_scheduled_time
+                    );
+
+                    // Sleep until the next scheduled event
+                    tokio::time::sleep(sleep_duration).await;
+
+                    let mut task_succeeded = false;
+
+                    // Keep trying to process the last week entries until successful
+                    while !task_succeeded {
+                        match send_announcement_lotto_results(&*config, &*database, http.clone())
+                            .await
+                        {
+                            Ok(_) => {
+                                info!("[Lotto Results Announcement] Successfully sending lotto results");
+                                task_succeeded = true
+                            }
+                            Err(e) => {
+                                error!(
+                                    "[Lotto Results Announcement] Error sending lotto results: {}",
+                                    e
+                                );
+                                // If there was an error, wait for a minute before retrying
+                                tokio::time::sleep(tokio::time::Duration::from_secs(60)).await
+                            }
+                        }
+                    }
+                    // Update the current time
+                    current_time = Utc::now();
+                }
+            }
+        }
+    });
 }
 
 pub async fn send_daily_report(http: Arc<Http>, channel_id: ChannelId) {

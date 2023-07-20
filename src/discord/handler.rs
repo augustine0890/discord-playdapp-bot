@@ -14,10 +14,10 @@ use std::{collections::HashSet, sync::Arc};
 use tracing::{error, info};
 
 use super::slash;
-use crate::database::mongo::MongoDB;
 use crate::scheduler::send_daily_report;
 use crate::util::filter_guilds;
 use crate::{config::EnvConfig, scheduler::lotto_game_scheduler};
+use crate::{database::mongo::MongoDB, scheduler::send_announcement_lotto_scheduler};
 
 pub struct Handler {
     pub db: Arc<MongoDB>,
@@ -123,6 +123,8 @@ pub async fn run_discord_bot(
         send_daily_report(http.clone(), channel_id).await;
 
         lotto_game_scheduler(Arc::clone(&db), Arc::clone(&config), http.clone()).await;
+
+        send_announcement_lotto_scheduler(Arc::clone(&db), Arc::clone(&config), http.clone()).await;
 
         // Lock the shared client for use in this task
         let mut locked_client = shared_client.lock().await;

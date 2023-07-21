@@ -67,7 +67,7 @@ impl MongoDB {
     pub async fn adjust_user_points(&self, user_id: &str, points: i32) -> MongoResult<()> {
         let user_collection = self.db.collection::<mongodb::bson::Document>("users");
         let filter = doc! {"_id": user_id};
-        let update = doc! {"$inc": {"points": points }};
+        let update = doc! {"$inc": {"points": points }, "$currentDate": { "updatedAt": true }};
         if let Err(e) = user_collection.update_one(filter, update, None).await {
             error!("Error updating user points: {}", e);
         }

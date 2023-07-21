@@ -124,7 +124,13 @@ pub async fn run_discord_bot(
 
         lotto_game_scheduler(Arc::clone(&db), Arc::clone(&config), http.clone()).await;
 
-        send_announcement_lotto_scheduler(Arc::clone(&db), Arc::clone(&config), http.clone()).await;
+        send_announcement_lotto_scheduler(
+            Arc::clone(&db),
+            Arc::clone(&config),
+            http.clone(),
+            channel_id,
+        )
+        .await;
 
         // Lock the shared client for use in this task
         let mut locked_client = shared_client.lock().await;

@@ -100,6 +100,23 @@ pub async fn send_dm(
     dm_channel.send_message(&http, |m| m.content(content)).await
 }
 
+pub async fn notify_error(http: Arc<Http>, channel_id: ChannelId, mut message: String) {
+    // add emoji at the end of the message
+    message += " :warning:"; // Add emoji using its alias in markdown format
+
+    // Send the embed message to the channel
+    let _ = channel_id
+        .send_message(&http, |m| {
+            m.embed(|e| {
+                e.title("Errors Notification");
+                e.description(&message);
+                e.color(0xFF0000); // Red color for errors
+                e.timestamp(chrono::Utc::now().to_rfc3339())
+            })
+        })
+        .await;
+}
+
 lazy_static! {
     pub static ref BAD_EMOJI: HashSet<&'static str> = vec![
         "😠",

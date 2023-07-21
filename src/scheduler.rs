@@ -1,7 +1,7 @@
 use crate::{
     config::EnvConfig,
     database::mongo::MongoDB,
-    util::{get_week_number, send_dm},
+    util::{get_week_number, notify_error, send_dm},
 };
 use chrono::{NaiveDate, Utc};
 use cron::Schedule;
@@ -358,19 +358,17 @@ pub async fn send_announcement_lotto_scheduler(
     database: Arc<MongoDB>,
     config: Arc<EnvConfig>,
     http: Arc<Http>,
+    channel_id: ChannelId,
 ) {
     // The schedule string represents "at 00:03:00 on every Monday"
-    // let weekly_schedule = Schedule::from_str("0 */1 * * * *").unwrap();
     let weekly_schedule = Schedule::from_str("0 0 3 * * 2").unwrap();
+    // let weekly_schedule = Schedule::from_str("0 */1 * * * *").unwrap();
 
     tokio::spawn(async move {
         let mut current_time = Utc::now();
         loop {
-            // Get the next scheduled time according to the weekly schedule
             if let Some(next_scheduled_time) = weekly_schedule.upcoming(chrono::Utc).next() {
-                // If the next scheduled time is in the future...
                 if next_scheduled_time > current_time {
-                    // Calculate the amount of time until the next scheduled event
                     let sleep_duration = (next_scheduled_time - current_time).to_std().unwrap();
                     let sleep_days = (sleep_duration.as_secs() as f64 / 86400.0).round();
                     info!(
@@ -378,13 +376,13 @@ pub async fn send_announcement_lotto_scheduler(
                         sleep_days, next_scheduled_time
                     );
 
-                    // Sleep until the next scheduled event
                     tokio::time::sleep(sleep_duration).await;
 
                     let mut task_succeeded = false;
+                    let mut retries = 0;
 
-                    // Keep trying to process the last week entries until successful
-                    while !task_succeeded {
+                    while !task_succeeded && retries < 3 {
+                        // Limit retries to 3 times
                         match send_announcement_lotto_results(&*config, &*database, http.clone())
                             .await
                         {
@@ -393,16 +391,18 @@ pub async fn send_announcement_lotto_scheduler(
                                 task_succeeded = true
                             }
                             Err(e) => {
+                                retries += 1;
                                 error!(
-                                    "[Lotto Results Announcement] Error sending lotto results: {}",
-                                    e
+                                    "[Lotto Results Announcement] Error sending lotto results: {}. Retry attempt: {}",
+                                    e, retries
                                 );
-                                // If there was an error, wait for a minute before retrying
-                                tokio::time::sleep(tokio::time::Duration::from_secs(60)).await
+                                notify_error(http.clone(), channel_id, e.to_string()).await;
+
+                                tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
                             }
                         }
                     }
-                    // Update the current time
+
                     current_time = Utc::now();
                 }
             }

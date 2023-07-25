@@ -5,6 +5,8 @@ use crate::util::{self, calculate_lotto_points, get_week_number, BAD_EMOJI};
 use chrono::Utc;
 use ethers::types::Address;
 use ethers::utils::to_checksum;
+use serenity::builder::CreateEmbed;
+use serenity::utils::Color;
 use std::str::FromStr;
 use tracing::error;
 
@@ -441,6 +443,89 @@ impl Handler {
             })
             .await?;
 
+        Ok(())
+    }
+
+    /// Handles a check lotto command.
+    ///
+    /// This function fetches the lotto guesses of the user and responds back to them with the details of their guesses.
+    /// If the user hasn't participated in the lotto, it sends a reminder to participate.
+    pub async fn handle_check_lotto(
+        &self,
+        ctx: Context,
+        command: ApplicationCommandInteraction,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        // Fetch current week number
+        let (year, current_week) = get_week_number();
+        // Get the Discord user ID
+        let dc_id = command.user.id.into();
+
+        // Fetch the user's lotto guesses
+        let lotto_guesses = self
+            .db
+            .get_user_lotto_guesses(year, current_week, dc_id)
+            .await
+            .map_err(|e| {
+                error!("Error fetching lotto guesses: {}", e);
+                Box::new(e)
+            })?;
+
+        // If the user hasn't made any guesses yet, send a reminder to participate
+        if lotto_guesses.is_empty() {
+            let lotto_channel = ChannelId(self.config.lotto_channel);
+            let reminder_content = format!("Sorry, you haven’t joined the Weekly Lotto this week yet :frowning2:\nType **“/lotto”** in <#{}> channel to try your luck! 🍀", lotto_channel);
+
+            command
+                .create_interaction_response(&ctx.http, |r| {
+                    r.kind(InteractionResponseType::ChannelMessageWithSource)
+                        .interaction_response_data(|m| {
+                            m.content(reminder_content).flags(MessageFlags::EPHEMERAL)
+                        })
+                })
+                .await?;
+
+            return Ok(());
+        }
+
+        // If the user has made guesses, construct an embed with the details of their guesses
+        let user = &command.user;
+        let description = format!(
+        "Thank you for joining the Weekly Lotto! 🎰\n🤗 Below is your participation status for **Week {}** Lotto:",
+        current_week
+    );
+
+        let thumbnail = user.face();
+        let footer_text = format!("Given to {}", user.name);
+
+        let mut embed = CreateEmbed::default();
+        embed
+            .description(description)
+            .color(Color::new(0x00FA9A))
+            .thumbnail(thumbnail.clone())
+            .footer(|f| f.text(footer_text).icon_url(thumbnail))
+            .timestamp(chrono::Utc::now().to_rfc3339());
+
+        // Add a field for each guess
+        for guess in lotto_guesses {
+            embed
+                .field("Chosen Numbers", format!("{:?}", guess.numbers), true)
+                .field(
+                    "Time (UTC)",
+                    guess.updated_at.format("%Y-%m-%d %H:%M"),
+                    true,
+                )
+                .field("", "", true);
+        }
+
+        // Send the embed to the user
+        command
+            .create_interaction_response(&ctx.http, |r| {
+                r.kind(InteractionResponseType::ChannelMessageWithSource)
+                    .interaction_response_data(|m| {
+                        m.flags(MessageFlags::EPHEMERAL).add_embed(embed)
+                    })
+            })
+            .await?;
         Ok(())
     }
 

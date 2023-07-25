@@ -329,6 +329,21 @@ impl Handler {
                             })
                     })
                     .await;
+
+                // Send a public message to the channel
+                if let Err(why) = command
+                    .channel_id
+                    .say(
+                        &ctx.http,
+                        format!(
+                            "🎲 The lotto is heating up! <@{}> is in - will you be next? Check out `/lotto-guideline` and participate! 💰",
+                            command.user.id, // Make sure to use the user's ID
+                        ),
+                    )
+                    .await
+                {
+                    error!("Error sending message: {}", why);
+                }
             }
             Ok(false) => {
                 // User has already made 3 guesses this week.

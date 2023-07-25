@@ -398,8 +398,8 @@ impl Handler {
             \n 4 matching numbers: 100,000 points + Achievement Badges (Level 2) \
             \nWinners will be notified by DM. 📩 \
             \n\n*Participation guidelines*💰 \
-            \n- **Free of charge for the 1st month**; maximum 3 times of participation per week. \
-            \n- Starting from the 2nd month, the participation fee is 200 points; maximum 5 times of participation per week. \
+            \n- **Free of charge from 31st Jul - 28th Aug at 3:00 (UTC+0)**; maximum 3 times of participation per week. \
+            \n- After the free period, the participation fee is 200 points; maximum 5 times of participation per week. \
             \n\n*When will the Weekly Lotto open?*⏰ \
             \n- The entry period is **Monday 00:00 - Sun 23:59 (UTC+0)**. \
             \n- The result of the previous week will be announced on **every Monday 03:00 (UTC+0)**",

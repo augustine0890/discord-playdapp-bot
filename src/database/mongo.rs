@@ -391,4 +391,50 @@ impl MongoDB {
 
         Ok(())
     }
+
+    pub async fn get_user_lotto_guesses(
+        &self,
+        year: i32,
+        week_number: u32,
+        dc_id: u64,
+    ) -> MongoResult<Vec<LottoGuess>> {
+        let lotto_guesses_collection = self.db.collection::<mongodb::bson::Document>("lottoguess");
+
+        let filter = doc! {
+            "year": year,
+            "weekNumber": week_number,
+            "dcId": dc_id as i64,
+        };
+
+        // Specify the fields to return.
+        let find_options = FindOptions::builder()
+            .projection(doc! {
+                "numbers": 1,
+                "updatedAt": 1,
+            })
+            .build();
+
+        // Perform the query and collect all matching documents into a Vec<LottoGuess>
+        let mut cursor = lotto_guesses_collection.find(filter, find_options).await?;
+
+        let mut results: Vec<LottoGuess> = Vec::new();
+
+        while let Some(result) = cursor.next().await {
+            match result {
+                Ok(doc) => {
+                    match bson::from_bson::<LottoGuess>(bson::Bson::Document(doc)) {
+                        Ok(lotto_guess) => {
+                            // If successful, add the guess to the results
+                            results.push(lotto_guess);
+                        }
+                        // If unsuccessful, return an appropriate error
+                        Err(e) => return Err(e.into()),
+                    }
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+
+        Ok(results)
+    }
 }

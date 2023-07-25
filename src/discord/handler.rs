@@ -49,6 +49,11 @@ impl EventHandler for Handler {
                         error!("Error handling attendance guideline: {:?}", why);
                     }
                 }
+                "checklotto" => {
+                    if let Err(why) = self.handle_check_lotto(ctx.clone(), command).await {
+                        error!("Error handling check lotto guesses: {:?}", why);
+                    }
+                }
                 _ => info!("Command not found"),
             },
             _ => (),
@@ -155,6 +160,7 @@ pub async fn setup_global_commands(ctx: &Context) {
         "lotto",
         "lotto-guideline",
         "attendance-guideline",
+        "checklotto",
     ];
     let commands_to_delete: HashSet<&str> = commands_to_delete.iter().cloned().collect();
 
@@ -172,6 +178,7 @@ pub async fn setup_global_commands(ctx: &Context) {
         slash::lotto,
         slash::lotto_guideline,
         slash::attendance_guideline,
+        slash::check_lotto,
     ];
 
     for setup in command_setups {

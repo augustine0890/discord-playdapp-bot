@@ -84,3 +84,11 @@ pub fn attendance_guideline(
         .name("attendance-guideline")
         .description("The official guideline for getting the attendance and checking the points")
 }
+
+pub fn check_lotto(
+    command: &mut builder::CreateApplicationCommand,
+) -> &mut builder::CreateApplicationCommand {
+    command
+        .name("checklotto")
+        .description("This week's lotto guesses")
+}

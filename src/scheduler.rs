@@ -183,9 +183,9 @@ pub async fn setup_scheduler(database: MongoDB) {
 }
 
 pub async fn lotto_game_scheduler(database: Arc<MongoDB>, config: Arc<EnvConfig>, http: Arc<Http>) {
-    // The schedule string represents "at 02:59:00 on every Monday"
+    // The schedule string represents "at 02:58:00 on every Monday"
     // let weekly_schedule = Schedule::from_str("0 */1 * * * *").unwrap();
-    let weekly_schedule = Schedule::from_str("0 59 2 * * 2").unwrap();
+    let weekly_schedule = Schedule::from_str("0 58 2 * * 2").unwrap();
 
     tokio::spawn(async move {
         let mut current_time = Utc::now();
@@ -249,6 +249,11 @@ pub async fn process_last_week_lotto_guesses(
     let last_week_entries = database
         .get_lotto_guesses(year, last_week, Some(false))
         .await?;
+
+    // If last_week_entries is empty, return and do nothing
+    if last_week_entries.is_empty() {
+        return Ok(());
+    }
 
     let attendance_channel_id = config.attendance_channel;
     let attendance_channel = ChannelId(attendance_channel_id);
@@ -360,8 +365,8 @@ pub async fn send_announcement_lotto_scheduler(
     http: Arc<Http>,
     channel_id: ChannelId,
 ) {
-    // The schedule string represents "at 03:03:00 on every Monday"
-    let weekly_schedule = Schedule::from_str("0 3 3 * * 2").unwrap();
+    // The schedule string represents "at 03:00:00 on every Monday"
+    let weekly_schedule = Schedule::from_str("0 0 3 * * 2").unwrap();
     // let weekly_schedule = Schedule::from_str("0 */1 * * * *").unwrap();
 
     tokio::spawn(async move {

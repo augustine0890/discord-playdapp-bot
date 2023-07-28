@@ -66,11 +66,36 @@ impl MongoDB {
 
     pub async fn adjust_user_points(&self, user_id: &str, points: i32) -> MongoResult<()> {
         let user_collection = self.db.collection::<mongodb::bson::Document>("users");
+        let max_points = 200000;
+
+        // Get current points
+        let current_points = self.get_user_points(user_id).await?;
+
+        let points_to_add = if points > 0 {
+            // If adding points and current_points already exceeds max_points, do nothing and return
+            if current_points >= max_points {
+                return Ok(());
+            }
+
+            // Calculate the points to add if adding points would exceed max_points
+            if current_points + points > max_points {
+                max_points - current_points
+            } else {
+                points
+            }
+        } else {
+            // If subtracting points, just allow it
+            points
+        };
+
+        // Perform the database operation
         let filter = doc! {"_id": user_id};
-        let update = doc! {"$inc": {"points": points }, "$currentDate": { "updatedAt": true }};
+        let update =
+            doc! {"$inc": {"points": points_to_add }, "$currentDate": { "updatedAt": true }};
         if let Err(e) = user_collection.update_one(filter, update, None).await {
             error!("Error updating user points: {}", e);
         }
+
         Ok(())
     }
 

@@ -505,8 +505,7 @@ impl Handler {
         // If the user has made guesses, construct an embed with the details of their guesses
         let user = &command.user;
         let description = format!(
-        "Thank you for joining the Weekly Lotto! 🎰\n🤗 Below is your participation status for **Week {}** Lotto:",
-        current_week
+        "Thank you for joining the Weekly Lotto! 🎰\n🤗 Below is your participation status for the current and the previous week lottos:"
     );
 
         let thumbnail = user.face();
@@ -524,12 +523,12 @@ impl Handler {
         for guess in lotto_guesses {
             embed
                 .field("Chosen Numbers", format!("{:?}", guess.numbers), true)
+                .field("Week", format!("{:?}", guess.week_number), true)
                 .field(
                     "Time (UTC)",
                     guess.updated_at.format("%Y-%m-%d %H:%M"),
                     true,
-                )
-                .field("", "", true);
+                );
         }
 
         // Send the embed to the user

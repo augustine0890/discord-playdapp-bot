@@ -426,14 +426,17 @@ impl MongoDB {
         let lotto_guesses_collection = self.db.collection::<mongodb::bson::Document>("lottoguess");
 
         let filter = doc! {
-            "year": year,
-            "weekNumber": week_number,
             "dcId": dc_id as i64,
+            "$or": [
+                { "year": year, "weekNumber": week_number },
+                { "year": if week_number == 1 { year - 1 } else { year }, "weekNumber": if week_number == 1 { 53 } else { week_number - 1 } }
+            ],
         };
 
         // Specify the fields to return.
         let find_options = FindOptions::builder()
             .projection(doc! {
+                "dcId": 1,
                 "numbers": 1,
                 "updatedAt": 1,
             })

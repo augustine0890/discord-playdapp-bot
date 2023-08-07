@@ -111,7 +111,7 @@ pub struct LottoGuess {
     pub numbers: Vec<i32>,
     #[serde(skip_deserializing)]
     pub year: i32,
-    #[serde(rename = "weekNumber", skip_deserializing)]
+    #[serde(rename = "weekNumber")]
     pub week_number: u32,
     #[serde(rename = "matchedCount", skip_serializing_if = "Option::is_none")]
     pub matched_count: Option<i32>,

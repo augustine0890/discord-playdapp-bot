@@ -438,6 +438,7 @@ impl MongoDB {
             .projection(doc! {
                 "dcId": 1,
                 "numbers": 1,
+                "weekNumber": 1,
                 "updatedAt": 1,
             })
             .build();

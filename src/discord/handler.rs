@@ -127,7 +127,7 @@ pub async fn run_discord_bot(
                                                          // Start the daily report in a new async task
         send_daily_report(http.clone(), channel_id).await;
 
-        // lotto_game_scheduler(Arc::clone(&db), Arc::clone(&config), http.clone()).await;
+        lotto_game_scheduler(Arc::clone(&db), Arc::clone(&config), http.clone()).await;
 
         send_announcement_lotto_scheduler(
             Arc::clone(&db),

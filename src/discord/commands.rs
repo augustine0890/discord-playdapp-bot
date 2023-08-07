@@ -526,7 +526,7 @@ impl Handler {
                 .field("Week", format!("{:?}", guess.week_number), true)
                 .field(
                     "Time (UTC)",
-                    guess.updated_at.format("%Y-%m-%d %H:%M"),
+                    guess.created_at.format("%Y-%m-%d %H:%M"),
                     true,
                 );
         }

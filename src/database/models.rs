@@ -120,7 +120,7 @@ pub struct LottoGuess {
     pub points: Option<i32>,
     #[serde(rename = "dmSent", skip_serializing_if = "Option::is_none")]
     pub dm_sent: Option<bool>,
-    #[serde(rename = "createdAt", skip_deserializing)]
+    #[serde(rename = "createdAt")]
     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
     pub created_at: chrono::DateTime<Utc>,
     #[serde(rename = "updatedAt")]

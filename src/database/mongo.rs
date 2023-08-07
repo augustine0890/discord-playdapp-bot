@@ -440,6 +440,7 @@ impl MongoDB {
                 "numbers": 1,
                 "weekNumber": 1,
                 "createdAt": 1,
+                "updatedAt": 1,
             })
             .build();
 

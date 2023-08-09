@@ -93,9 +93,15 @@ pub async fn send_dm(
     // Open a direct message channel with the user
     let dm_channel = user_id.create_dm_channel(&http).await?;
 
-    let content = format!("Congratulations! 👏🏻👏🏻👏🏻 You got {} number(s) correct and you earned {} points in the lotto! 🎰
-        \nType “!cp” in <#{}> to check your prize! 🎁", entry.matched_count.unwrap_or(0), entry.points.unwrap_or(0), attend_channel);
-
+    let content = format!(
+        "Congratulations! 👏🏻👏🏻👏🏻 You got {} number(s) correct and you earned {} points in the lotto! 🎰 \
+    \n\nHere are your lotto choice numbers from your attempt:\n{:?} \
+    \n\nType “!cp” in <#{}> to check your prize! 🎁",
+        entry.matched_count.unwrap_or(0),
+        entry.points.unwrap_or(0),
+        entry.numbers,
+        attend_channel
+    );
     // Send the message and return the resulting Message object
     dm_channel.send_message(&http, |m| m.content(content)).await
 }

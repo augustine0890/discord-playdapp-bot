@@ -380,7 +380,7 @@ impl Handler {
             \n1. Go to <#{}> channel. \
             \n2. Type **\"/lotto\"** and enter your 4 choices of single-digit numbers (i.e., between 0-9), e.g., '1', '5', '4', '7'. \
             \n3. Once you successfully join the lotto, a confirmation message will be displayed!📨 \
-            \n4. Type **\"/checklotto\"** to check your lotto participation status and chosen numbers for for the current and previous week. \
+            \n4. Type **\"/checklotto\"** to check your lotto participation status and chosen numbers for the current and previous week. \
             \n\n*Rules*🧑🏻‍🏫 \
             \n- Participants need to choose 4 single-digit numbers (i.e., between 0-9). \
             \n- Both the **integer values** and **position** should match with the winning lotto numbers to win. \

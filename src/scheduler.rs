@@ -318,7 +318,7 @@ pub async fn send_announcement_lotto_results(
 
     let mut message = format!(
         "**Weekly Lotto Results - Week {} 🎰**\n\n\
-        Hello @everyone! We're thrilled to announce the results of this week's lotto! 😆Thank you all for your participation and patience!! The anticipation has been building, and now it's time to reveal the winning numbers! Let's get started🔥 \n\n\
+        Hello @everyone! We’re thrilled to announce the results of last week’s lotto! 😆Thank you all for your participation and patience!! The anticipation has been building, and now it's time to reveal the winning numbers! Let's get started🔥 \n\n\
         **Winning Lotto Numbers: {}**\n\n\
         **Number of Winners:**\n",
         last_week,

@@ -346,8 +346,8 @@ pub async fn send_announcement_lotto_results(
     let attendance_channel = ChannelId(attendance_channel_id);
 
     message.push_str(&format!("\nWinners, please read the DM 📨 that we sent you and check your prize in <#{}>!🎁 \n\n\
-    Thank you once again to everyone who participated in this week's lotto!🧡 🫶🏻 \n\
-    The entry period will open every Monday 00:00 (UTC+0), get ready for another exciting round of the lotto next week!\n\n\
+    Thank you once again to everyone who participated in last week's lotto!🧡 🫶🏻 \n\
+    The entry period will open every Monday 00:00 (UTC+0), get ready for another exciting round of the lotto this week!\n\n\
     **Good luck to you all!**🍀", attendance_channel));
 
     let lotto_channel_id = config.lotto_channel;

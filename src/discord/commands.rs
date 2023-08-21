@@ -505,7 +505,7 @@ impl Handler {
         // If the user has made guesses, construct an embed with the details of their guesses
         let user = &command.user;
         let description = format!(
-        "Thank you for joining the Weekly Lotto! 🎰\n🤗 Below is your participation status for the current and the previous week lottos:"
+        "Thank you for joining the Weekly Lotto! 🎰\n🤗 Below is your participation status for the first **8** (if fewer, all) lottos of the current and previous week:"
     );
 
         let thumbnail = user.face();

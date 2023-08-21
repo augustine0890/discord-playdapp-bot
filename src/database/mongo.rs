@@ -433,7 +433,7 @@ impl MongoDB {
             ],
         };
 
-        // Specify the fields to return.
+        // Specify the fields to return and limit the resutls to 8 documents.
         let find_options = FindOptions::builder()
             .projection(doc! {
                 "dcId": 1,
@@ -442,6 +442,7 @@ impl MongoDB {
                 "createdAt": 1,
                 "updatedAt": 1,
             })
+            .limit(8)
             .build();
 
         // Perform the query and collect all matching documents into a Vec<LottoGuess>

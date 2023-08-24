@@ -246,6 +246,27 @@ impl Handler {
             None => &command.user.name,
         };
 
+        // Check if the user has enough points
+        const FEE_POINTS: i32 = 200;
+        let user_points = self
+            .db
+            .get_user_points(&command.user.id.to_string())
+            .await
+            .unwrap_or_default();
+        if user_points < FEE_POINTS {
+            command
+            .create_interaction_response(&ctx.http, |r| {
+                r.kind(InteractionResponseType::ChannelMessageWithSource)
+                    .interaction_response_data(|m| {
+                        m.content("Sorry! You do not have sufficient points to cover the lottery fee. Try to earn more points! 🏋️‍♂️💪🏋️‍♀️")
+                            .flags(MessageFlags::EPHEMERAL)
+                    })
+            })
+            .await?;
+
+            return Ok(());
+        }
+
         let first_number = command
             .data
             .options
@@ -363,6 +384,10 @@ impl Handler {
                 error!("Error adding lotto guess to the database: {}", e);
             }
         }
+
+        self.db
+            .adjust_user_points(&command.user.id.to_string(), -FEE_POINTS)
+            .await?;
 
         Ok(()) // Continue the function despite the outcome
     }

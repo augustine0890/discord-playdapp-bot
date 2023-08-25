@@ -368,7 +368,7 @@ impl Handler {
             }
             Ok(false) => {
                 // User has already made 3 guesses this week.
-                let content = "You have already made 3 guesses this week 😩 Please wait until next week to play again 💪🏻";
+                let content = "You have already made 5 guesses this week 😩 Please wait until next week to play again 💪🏻";
 
                 let _ = command
                     .create_interaction_response(&ctx.http, |r| {

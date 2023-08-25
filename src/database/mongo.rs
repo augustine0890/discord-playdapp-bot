@@ -325,8 +325,8 @@ impl MongoDB {
 
         let count = guess_collection.count_documents(filter, None).await?;
 
-        // If the user has made 3 or more guesses this week, return false
-        if count >= 3 {
+        // If the user has made 5 or more guesses this week, return false
+        if count >= 5 {
             return Ok(false);
         }
 

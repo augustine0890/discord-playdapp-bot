@@ -7,7 +7,7 @@ use mongodb::error::Error;
 use mongodb::error::Result as MongoResult;
 use mongodb::results::DeleteResult;
 use mongodb::{
-    options::{ClientOptions, FindOneOptions, FindOptions},
+    options::{ClientOptions, FindOneOptions, FindOptions, UpdateOptions},
     Client, Database,
 };
 use tracing::error;
@@ -64,7 +64,12 @@ impl MongoDB {
         }
     }
 
-    pub async fn adjust_user_points(&self, user_id: &str, points: i32) -> MongoResult<()> {
+    pub async fn adjust_user_points(
+        &self,
+        user_id: &str,
+        user_name: Option<&str>,
+        points: i32,
+    ) -> MongoResult<()> {
         let user_collection = self.db.collection::<mongodb::bson::Document>("users");
         let max_points = 200000;
 
@@ -90,9 +95,37 @@ impl MongoDB {
 
         // Perform the database operation
         let filter = doc! {"_id": user_id};
-        let update =
-            doc! {"$inc": {"points": points_to_add }, "$currentDate": { "updatedAt": true }};
-        if let Err(e) = user_collection.update_one(filter, update, None).await {
+        let user_exists = user_collection
+            .find_one(filter.clone(), None)
+            .await?
+            .is_some();
+
+        let update = if user_exists {
+            // If user exists, prepare update document for existing user
+            doc! {
+                "$inc": {"points": points_to_add},
+                "$currentDate": {"updatedAt": true}
+            }
+        } else {
+            // If user does not exist, prepare document for new user
+            let mut set_on_insert_doc = doc! {
+                "_id": user_id,
+            };
+            if let Some(name) = user_name {
+                set_on_insert_doc.insert("userName", name);
+            }
+            doc! {
+                "$setOnInsert": set_on_insert_doc,
+                "$set": {"points": points_to_add},
+                "$currentDate": {"createdAt": true, "updatedAt": true}
+            }
+        };
+
+        let update_options = UpdateOptions::builder().upsert(true).build();
+        if let Err(e) = user_collection
+            .update_one(filter, update, Some(update_options))
+            .await
+        {
             error!("Error updating user points: {}", e);
         }
 

@@ -159,7 +159,7 @@ impl Handler {
 
         // Subtract the required points from the user's points
         self.db
-            .adjust_user_points(&command.user.id.to_string(), -required_points)
+            .adjust_user_points(&command.user.id.to_string(), None, -required_points)
             .await?;
 
         const ITEM_TICKET: &str = "ticket";
@@ -386,7 +386,7 @@ impl Handler {
         }
 
         self.db
-            .adjust_user_points(&command.user.id.to_string(), -FEE_POINTS)
+            .adjust_user_points(&command.user.id.to_string(), None, -FEE_POINTS)
             .await?;
 
         Ok(()) // Continue the function despite the outcome
@@ -766,7 +766,7 @@ impl Handler {
         if let Ok(true) = self.db.add_react_poll_activity(activity).await {
             // Adjust the user's points in the database.
             self.db
-                .adjust_user_points(&user_id.to_string(), REWARD_POINTS)
+                .adjust_user_points(&user_id.to_string(), None, REWARD_POINTS)
                 .await?;
 
             // Prepare the content for the confirmation message.
@@ -836,7 +836,7 @@ impl Handler {
         // If a bad emoji was used, deduct points from the user and notify them.
         if BAD_EMOJI.contains(emoji_name) {
             self.db
-                .adjust_user_points(&user_id.to_string(), DEDUCT_POINTS)
+                .adjust_user_points(&user_id.to_string(), None, DEDUCT_POINTS)
                 .await?;
 
             let content = format!(
@@ -876,7 +876,7 @@ impl Handler {
             let user_id_str = user_id.to_string();
 
             self.db
-                .adjust_user_points(&user_id_str, REACT_POINTS)
+                .adjust_user_points(&user_id_str, None, REACT_POINTS)
                 .await?;
 
             let content = format!(
@@ -911,7 +911,7 @@ impl Handler {
             let author_id_str = author.id.to_string();
 
             self.db
-                .adjust_user_points(&author_id_str, RECEIVE_POINTS)
+                .adjust_user_points(&author_id_str, Some(&author.name), RECEIVE_POINTS)
                 .await?;
 
             let content = format!(

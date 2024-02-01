@@ -266,7 +266,7 @@ pub async fn process_last_week_lotto_guesses(
         database.update_dm_sent_flag(entry.id.unwrap()).await?;
 
         database
-            .adjust_user_points(&entry.dc_id.to_string(), entry.points.unwrap())
+            .adjust_user_points(&entry.dc_id.to_string(), None, entry.points.unwrap())
             .await?;
     }
 
